@@ -1,8 +1,31 @@
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Check if .env file exists
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  console.log('.env file found at:', envPath);
+  dotenv.config();
+} else {
+  console.warn('Warning: .env file not found at:', envPath);
+  console.warn('Please create a .env file with your API keys (see .env.example)');
+  // Create a default .env file with placeholders
+  const envExample = fs.readFileSync(path.resolve(process.cwd(), '.env.example'), 'utf8');
+  fs.writeFileSync(envPath, envExample, 'utf8');
+  console.log('Created placeholder .env file. Please edit it with your API keys.');
+  dotenv.config();
+}
+
+// Log environment variables (masked)
+console.log('Environment variables loaded:');
+console.log('- SPEECHMATICS_API_KEY:', process.env.SPEECHMATICS_API_KEY ? '✓ Present' : '✗ Missing');
+console.log('- ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? '✓ Present' : '✗ Missing');
+console.log('- PORT:', process.env.PORT || '3000 (default)');
+
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 
 // Initialize Express app
@@ -152,7 +175,24 @@ wss.on('connection', (ws) => {
                 message: 'Claude processing request'
               }));
               
+              // Log API key presence (masked for security)
+              const apiKeyExists = !!process.env.ANTHROPIC_API_KEY;
+              const maskedKey = apiKeyExists 
+                ? `${process.env.ANTHROPIC_API_KEY.substring(0, 4)}...${process.env.ANTHROPIC_API_KEY.substring(process.env.ANTHROPIC_API_KEY.length - 4)}`
+                : 'not found';
+              console.log(`Anthropic API Key: ${apiKeyExists ? 'exists' : 'missing'} (${maskedKey})`);
+              console.log('Anthropic client initialized:', !!anthropic);
+              
+              // Log what we're sending to Claude
+              console.log('Sending to Claude API:', {
+                model: 'claude-3-opus-20240229',
+                max_tokens: 1000,
+                message_count: messageHistory.length + 1, // +1 for system message
+                system_message: 'You are a helpful voice assistant. Respond concisely as you are part of a real-time conversation.'
+              });
+              
               // Get response from Claude
+              console.log('Calling Anthropic API...');
               const claudeResponse = await anthropic.messages.create({
                 model: 'claude-3-opus-20240229',
                 max_tokens: 1000,
@@ -164,6 +204,8 @@ wss.on('connection', (ws) => {
                   ...messageHistory
                 ],
               });
+              
+              console.log('Anthropic API call successful!');
               
               const assistantMessage = claudeResponse.content[0].text;
               console.log('Claude response:', assistantMessage);
@@ -196,15 +238,36 @@ wss.on('connection', (ws) => {
                 }));
               }, 3000);
             } catch (error) {
-              console.error('Error getting response from Claude:', error);
+              console.error('Error getting response from Claude:', error.message);
+              console.error('Error details:', error);
+              
+              // Provide more specific error message based on error type
+              let errorMessage = 'Error getting AI response';
+              let statusMessage = 'Error with Claude';
+              
+              if (error.status === 401) {
+                errorMessage = 'Invalid API key or authentication error';
+                statusMessage = 'API key error';
+              } else if (error.message.includes('API key')) {
+                errorMessage = 'Missing or invalid API key';
+                statusMessage = 'API key error';
+              } else if (error.type === 'network_error') {
+                errorMessage = 'Network error connecting to Claude API';
+                statusMessage = 'Network error';
+              } else if (error.message.includes('timeout')) {
+                errorMessage = 'Request to Claude API timed out';
+                statusMessage = 'Timeout error';
+              }
+              
               ws.send(JSON.stringify({
                 type: 'status',
                 status: 'claudeError',
-                message: 'Error with Claude'
+                message: statusMessage
               }));
+              
               ws.send(JSON.stringify({
                 type: 'error',
-                text: 'Error getting AI response'
+                text: errorMessage
               }));
             }
           }
