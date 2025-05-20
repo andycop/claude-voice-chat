@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Voice Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Claude Voice Chat</h1>
+        
+        <div class="status-indicator">
+            <span id="status">Disconnected</span>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" class="primary-btn">Start Listening</button>
+            <button id="stopBtn" class="primary-btn" disabled>Stop Listening</button>
+        </div>
+        
+        <div class="conversation-container">
+            <h2>Conversation</h2>
+            <div id="conversation" class="conversation">
+                <div class="welcome-message">
+                    <p>Welcome to Claude Voice Chat. Click "Start Listening" to begin.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="transcript-container">
+            <h2>Current Transcript</h2>
+            <div id="transcript" class="transcript"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
