@@ -3,11 +3,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const statusElement = document.getElementById('status');
+    const speechStatusElement = document.getElementById('speechStatus');
+    const apiStatusElement = document.getElementById('apiStatus');
+    const claudeStatusElement = document.getElementById('claudeStatus');
     const conversationElement = document.getElementById('conversation');
     const transcriptElement = document.getElementById('transcript');
+    const audioVisualizer = document.getElementById('audioVisualizer');
     
     // WebSocket connection
     let ws = null;
+    
+    // Audio visualizer
+    let audioVisualizerContext = audioVisualizer.getContext('2d');
+    let audioAnalyser = null;
+    let audioDataArray = null;
+    let animationFrameId = null;
     
     // Audio context and processing
     let audioContext = null;
@@ -24,28 +34,42 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ws.onopen = () => {
             console.log('Connected to server');
-            statusElement.textContent = 'Connected';
-            statusElement.className = 'connected';
+            updateStatus('connection', 'Connected');
             startBtn.disabled = false;
+            
+            // Initialize all other statuses
+            updateStatus('speech', 'Inactive');
+            updateStatus('api', 'Inactive');
+            updateStatus('claude', 'Inactive');
         };
         
         ws.onclose = () => {
             console.log('Disconnected from server');
-            statusElement.textContent = 'Disconnected';
-            statusElement.className = '';
+            updateStatus('connection', 'Disconnected');
+            updateStatus('speech', 'Inactive');
+            updateStatus('api', 'Inactive');
+            updateStatus('claude', 'Inactive');
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            
+            // Stop audio visualizer if active
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
         };
         
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
-            statusElement.textContent = 'Error';
+            updateStatus('connection', 'Error');
         };
         
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             
-            if (message.type === 'transcript') {
+            if (message.type === 'status') {
+                handleStatusUpdate(message);
+            } else if (message.type === 'transcript') {
                 // Update transcript
                 transcriptElement.textContent = message.text;
                 
@@ -62,6 +86,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error:', message.text);
             }
         };
+        
+        // Function to handle status updates
+        function handleStatusUpdate(message) {
+            console.log('Status update:', message);
+            
+            switch (message.status) {
+                // Connection status updates
+                case 'connected':
+                    updateStatus('connection', 'Connected');
+                    break;
+                    
+                // Speech detection status updates
+                case 'speechDetected':
+                    updateStatus('speech', 'Active');
+                    break;
+                    
+                // API status updates
+                case 'apiConnecting':
+                    updateStatus('api', 'Connecting', 'pending');
+                    break;
+                case 'apiConnected':
+                    updateStatus('api', 'Connected');
+                    break;
+                case 'apiProcessing':
+                    updateStatus('api', 'Processing', 'active');
+                    break;
+                    
+                // Claude status updates
+                case 'claudeProcessing':
+                    updateStatus('claude', 'Processing', 'pending');
+                    break;
+                case 'claudeResponded':
+                    updateStatus('claude', 'Responded', 'active');
+                    break;
+                case 'claudeWaiting':
+                    updateStatus('claude', 'Ready', 'active');
+                    break;
+                case 'claudeError':
+                    updateStatus('claude', 'Error');
+                    break;
+            }
+        }
     }
     
     // Function to add message to conversation
@@ -88,6 +154,82 @@ document.addEventListener('DOMContentLoaded', () => {
         conversationElement.scrollTop = conversationElement.scrollHeight;
     }
     
+    // Function to update status indicators
+    function updateStatus(type, status, statusClass = '') {
+        let element;
+        
+        switch (type) {
+            case 'connection':
+                element = statusElement;
+                break;
+            case 'speech':
+                element = speechStatusElement;
+                break;
+            case 'api':
+                element = apiStatusElement;
+                break;
+            case 'claude':
+                element = claudeStatusElement;
+                break;
+            default:
+                return;
+        }
+        
+        element.textContent = status;
+        
+        // Reset classes
+        element.className = '';
+        
+        // Add status class if provided, otherwise determine based on status
+        if (statusClass) {
+            element.classList.add(`status-${statusClass}`);
+        } else if (status === 'Connected' || status === 'Active' || status === 'Ready') {
+            element.classList.add('status-active');
+        } else if (status === 'Processing' || status === 'Connecting') {
+            element.classList.add('status-pending');
+        }
+    }
+    
+    // Function to draw audio visualizer
+    function drawAudioVisualizer() {
+        // Clear canvas
+        audioVisualizerContext.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+        
+        if (audioAnalyser) {
+            // Get audio data
+            audioAnalyser.getByteFrequencyData(audioDataArray);
+            
+            // Draw bars
+            const barWidth = (audioVisualizer.width / audioDataArray.length) * 2.5;
+            let x = 0;
+            
+            for (let i = 0; i < audioDataArray.length; i++) {
+                const barHeight = (audioDataArray[i] / 255) * audioVisualizer.height;
+                
+                // Use gradient color based on frequency
+                const hue = (i / audioDataArray.length) * 240;
+                audioVisualizerContext.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                
+                audioVisualizerContext.fillRect(x, audioVisualizer.height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+            }
+            
+            // If any significant audio detected, update speech status
+            const sum = audioDataArray.reduce((a, b) => a + b, 0);
+            const average = sum / audioDataArray.length;
+            
+            if (average > 20) {
+                updateStatus('speech', 'Active', 'active');
+            } else {
+                updateStatus('speech', 'Listening');
+            }
+        }
+        
+        // Continue animation
+        animationFrameId = requestAnimationFrame(drawAudioVisualizer);
+    }
+    
     // Function to initialize audio recording
     async function startRecording() {
         try {
@@ -104,9 +246,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const sourceNode = audioContext.createMediaStreamSource(mediaStream);
             audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
             
+            // Set up audio analyzer for visualization
+            audioAnalyser = audioContext.createAnalyser();
+            audioAnalyser.fftSize = 256;
+            const bufferLength = audioAnalyser.frequencyBinCount;
+            audioDataArray = new Uint8Array(bufferLength);
+            
             // Connect nodes
+            sourceNode.connect(audioAnalyser);
+            audioAnalyser.connect(audioProcessor);
             sourceNode.connect(audioProcessor);
             audioProcessor.connect(audioContext.destination);
+            
+            // Start audio visualizer
+            drawAudioVisualizer();
             
             // Process audio data
             audioProcessor.onaudioprocess = (e) => {
@@ -135,8 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ws.send(JSON.stringify({ type: 'start' }));
             
             // Update UI
-            statusElement.textContent = 'Listening';
-            statusElement.className = 'listening';
+            updateStatus('connection', 'Listening', 'active');
+            updateStatus('speech', 'Listening');
+            updateStatus('api', 'Connecting', 'pending');
+            updateStatus('claude', 'Waiting');
+            
             startBtn.disabled = true;
             stopBtn.disabled = false;
         } catch (error) {
@@ -152,6 +308,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ws.send(JSON.stringify({ type: 'stop' }));
         }
         
+        // Stop audio visualizer
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        
         // Stop recording
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
@@ -161,6 +323,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (audioProcessor) {
             audioProcessor.disconnect();
             audioProcessor = null;
+        }
+        
+        if (audioAnalyser) {
+            audioAnalyser.disconnect();
+            audioAnalyser = null;
         }
         
         if (audioContext) {
@@ -174,8 +341,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Update UI
-        statusElement.textContent = 'Connected';
-        statusElement.className = 'connected';
+        updateStatus('connection', 'Connected', 'active');
+        updateStatus('speech', 'Inactive');
+        updateStatus('api', 'Inactive');
+        updateStatus('claude', 'Inactive');
+        
+        // Clear canvas
+        audioVisualizerContext.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+        
         startBtn.disabled = false;
         stopBtn.disabled = true;
     }

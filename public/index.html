@@ -10,13 +10,32 @@
     <div class="container">
         <h1>Claude Voice Chat</h1>
         
-        <div class="status-indicator">
-            <span id="status">Disconnected</span>
+        <div class="status-indicators">
+            <div class="status-indicator">
+                <span class="status-label">Connection:</span>
+                <span id="status">Disconnected</span>
+            </div>
+            <div class="status-indicator">
+                <span class="status-label">Speech Detection:</span>
+                <span id="speechStatus">Inactive</span>
+            </div>
+            <div class="status-indicator">
+                <span class="status-label">API Processing:</span>
+                <span id="apiStatus">Inactive</span>
+            </div>
+            <div class="status-indicator">
+                <span class="status-label">Claude:</span>
+                <span id="claudeStatus">Inactive</span>
+            </div>
         </div>
         
         <div class="controls">
             <button id="startBtn" class="primary-btn">Start Listening</button>
             <button id="stopBtn" class="primary-btn" disabled>Stop Listening</button>
+        </div>
+        
+        <div class="audio-visualizer">
+            <canvas id="audioVisualizer" width="700" height="60"></canvas>
         </div>
         
         <div class="conversation-container">

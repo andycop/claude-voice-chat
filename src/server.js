@@ -33,6 +33,7 @@ wss.on('connection', (ws) => {
 
   // Initialize Speechmatics connection
   let speechmaticsWs = null;
+  let apiResponseReceived = false;
   
   ws.on('message', async (message) => {
     const data = JSON.parse(message);
@@ -42,8 +43,22 @@ wss.on('connection', (ws) => {
       const speechmaticsUrl = 'wss://eu2.rt.speechmatics.com/v2';
       speechmaticsWs = new WebSocket(speechmaticsUrl);
       
+      // Send status update to client
+      ws.send(JSON.stringify({
+        type: 'status',
+        status: 'apiConnecting',
+        message: 'Connecting to Speechmatics API...'
+      }));
+      
       speechmaticsWs.on('open', () => {
         console.log('Connected to Speechmatics');
+        
+        // Send status update to client
+        ws.send(JSON.stringify({
+          type: 'status',
+          status: 'apiConnected',
+          message: 'Connected to Speechmatics API'
+        }));
         
         // Send configuration to Speechmatics
         const config = {
@@ -68,9 +83,26 @@ wss.on('connection', (ws) => {
       speechmaticsWs.on('message', async (speechmaticsMessage) => {
         const response = JSON.parse(speechmaticsMessage);
         
+        // When receiving the first response, update the API status
+        if (!apiResponseReceived) {
+          apiResponseReceived = true;
+          ws.send(JSON.stringify({
+            type: 'status',
+            status: 'apiProcessing',
+            message: 'Speech recognition active'
+          }));
+        }
+        
         if (response.type === 'AddTranscript' || response.type === 'AddPartialTranscript') {
           const transcript = response.metadata.transcript;
           console.log('Transcript:', transcript);
+          
+          // Update speech detection status
+          ws.send(JSON.stringify({
+            type: 'status',
+            status: 'speechDetected',
+            message: 'Speech detected'
+          }));
           
           // Send transcript to client
           ws.send(JSON.stringify({
@@ -88,6 +120,13 @@ wss.on('connection', (ws) => {
             });
             
             try {
+              // Update Claude status
+              ws.send(JSON.stringify({
+                type: 'status',
+                status: 'claudeProcessing',
+                message: 'Claude processing request'
+              }));
+              
               // Get response from Claude
               const claudeResponse = await anthropic.messages.create({
                 model: 'claude-3-opus-20240229',
@@ -104,6 +143,13 @@ wss.on('connection', (ws) => {
               const assistantMessage = claudeResponse.content[0].text;
               console.log('Claude response:', assistantMessage);
               
+              // Update Claude status
+              ws.send(JSON.stringify({
+                type: 'status',
+                status: 'claudeResponded',
+                message: 'Claude responded'
+              }));
+              
               // Add assistant message to history
               messageHistory.push({
                 role: 'assistant',
@@ -115,8 +161,22 @@ wss.on('connection', (ws) => {
                 type: 'response',
                 text: assistantMessage
               }));
+              
+              // After a short delay, reset Claude status to waiting
+              setTimeout(() => {
+                ws.send(JSON.stringify({
+                  type: 'status',
+                  status: 'claudeWaiting',
+                  message: 'Claude waiting for input'
+                }));
+              }, 3000);
             } catch (error) {
               console.error('Error getting response from Claude:', error);
+              ws.send(JSON.stringify({
+                type: 'status',
+                status: 'claudeError',
+                message: 'Error with Claude'
+              }));
               ws.send(JSON.stringify({
                 type: 'error',
                 text: 'Error getting AI response'
