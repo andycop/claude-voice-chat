@@ -88,7 +88,21 @@ wss.on('connection', (ws) => {
       
       // Initialize Speechmatics WebSocket connection
       const speechmaticsUrl = 'wss://eu2.rt.speechmatics.com/v2';
-      speechmaticsWs = new WebSocket(speechmaticsUrl);
+      
+      // Include API key in headers according to Speechmatics documentation
+      const headers = {
+        'Authorization': 'Bearer ' + process.env.SPEECHMATICS_API_KEY
+      };
+      
+      // Log connection attempt
+      console.log('Connecting to Speechmatics with API key (masked):', 
+        process.env.SPEECHMATICS_API_KEY ? 
+        `${process.env.SPEECHMATICS_API_KEY.substring(0, 4)}...${process.env.SPEECHMATICS_API_KEY.substring(process.env.SPEECHMATICS_API_KEY.length - 4)}` : 
+        'missing');
+        
+      speechmaticsWs = new WebSocket(speechmaticsUrl, {
+        headers: headers
+      });
       
       // Send status update to client
       ws.send(JSON.stringify({
@@ -175,7 +189,10 @@ wss.on('connection', (ws) => {
         
         if (response.type === 'AddTranscript' || response.type === 'AddPartialTranscript') {
           const transcript = response.metadata.transcript;
-          console.log(`${response.type}:`, transcript);
+          const isPartial = response.type === 'AddPartialTranscript';
+          
+          // Log with clear indicators for transcript type
+          console.log(`Speechmatics ${isPartial ? 'PARTIAL' : 'FINAL'} transcript: "${transcript}"`);
           
           // Update speech detection status
           ws.send(JSON.stringify({
@@ -188,7 +205,8 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({
             type: 'transcript',
             text: transcript,
-            isFinal: response.type === 'AddTranscript'
+            isFinal: !isPartial,
+            source: 'speechmatics'
           }));
           
           // If it's a final transcript, send to Claude

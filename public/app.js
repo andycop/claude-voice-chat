@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // WebSocket connection
     let ws = null;
     
+    // Transcript tracking
+    let latestPartialTranscript = '';
+    let finalTranscripts = [];
+    
     // Audio visualizer
     let audioVisualizerContext = audioVisualizer.getContext('2d');
     let audioAnalyser = null;
@@ -70,14 +74,60 @@ document.addEventListener('DOMContentLoaded', () => {
             if (message.type === 'status') {
                 handleStatusUpdate(message);
             } else if (message.type === 'transcript') {
-                // Update transcript
-                transcriptElement.innerHTML = message.isFinal ? 
-                    `<span class="final-transcript">${message.text}</span>` : 
-                    `<span class="partial-transcript">${message.text}</span>`;
+                // Get transcript details
+                const { text, isFinal, source } = message;
                 
-                // Add user message to conversation if final
-                if (message.isFinal) {
-                    addMessageToConversation('user', message.text);
+                // Format the transcript with type indication
+                const transcriptType = isFinal ? 'final' : 'partial';
+                const transcriptSource = source || 'unknown';
+                
+                // Add transcript to console for debugging
+                console.log(`Received ${transcriptType} transcript from ${transcriptSource}: "${text}"`);
+                
+                // Update transcript tracking
+                if (isFinal) {
+                    // Store final transcript
+                    finalTranscripts.push(text);
+                    latestPartialTranscript = ''; // Reset partial
+                    
+                    // Update UI with final transcript
+                    const html = `
+                        <div class="final-transcript-container">
+                            <span class="final-transcript">${text}</span>
+                        </div>
+                        <div class="partial-transcript-container">
+                            <span class="partial-transcript">${latestPartialTranscript}</span>
+                        </div>
+                    `;
+                    transcriptElement.innerHTML = html;
+                    
+                    // Add to conversation
+                    addMessageToConversation('user', text);
+                } else {
+                    // Update latest partial transcript
+                    latestPartialTranscript = text;
+                    
+                    // Show both final and partial transcripts
+                    let html = '';
+                    
+                    // Add the most recent final transcript if it exists
+                    if (finalTranscripts.length > 0) {
+                        const recentFinal = finalTranscripts[finalTranscripts.length - 1];
+                        html += `
+                            <div class="final-transcript-container">
+                                <span class="final-transcript">${recentFinal}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    // Add the current partial transcript
+                    html += `
+                        <div class="partial-transcript-container">
+                            <span class="partial-transcript">${latestPartialTranscript}</span>
+                        </div>
+                    `;
+                    
+                    transcriptElement.innerHTML = html;
                 }
             } else if (message.type === 'response') {
                 // Add Claude's response to conversation
@@ -242,6 +292,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to initialize audio recording
     async function startRecording() {
         try {
+            // Reset transcript tracking
+            latestPartialTranscript = '';
+            finalTranscripts = [];
+            transcriptElement.innerHTML = '';
+            
             // Get user media
             mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             

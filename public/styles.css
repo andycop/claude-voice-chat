@@ -148,15 +148,33 @@ h2 {
 }
 
 .transcript {
-    min-height: 100px;
+    min-height: 120px;
     padding: 10px;
     background-color: #f8f9fa;
     border-radius: 5px;
     font-style: italic;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.final-transcript-container {
+    padding: 8px;
+    background-color: #e8f8f5;
+    border-radius: 5px;
+    border-left: 3px solid #2ecc71;
+}
+
+.partial-transcript-container {
+    padding: 8px;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+    border-left: 3px solid #3498db;
 }
 
 .partial-transcript {
     color: #7f8c8d;
+    font-style: italic;
 }
 
 .final-transcript {
