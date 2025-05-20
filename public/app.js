@@ -114,6 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'apiProcessing':
                     updateStatus('api', 'Processing', 'active');
                     break;
+                case 'apiError':
+                    updateStatus('api', 'Error');
+                    stopRecording(); // Stop recording on API error
+                    break;
                 case 'apiFinalTranscript':
                     updateStatus('api', 'Final Transcript', 'active');
                     break;

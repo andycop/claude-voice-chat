@@ -38,6 +38,15 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Set up WebSocket server
 const wss = new WebSocket.Server({ server });
 
+// Check API keys before initializing clients
+const speechmaticsKeyValid = !!process.env.SPEECHMATICS_API_KEY && process.env.SPEECHMATICS_API_KEY.length > 10;
+const anthropicKeyValid = !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY.length > 10;
+
+// Log API key status
+console.log('API Key Validation:');
+console.log('- Speechmatics API Key:', speechmaticsKeyValid ? 'Valid format' : 'Invalid or missing');
+console.log('- Anthropic API Key:', anthropicKeyValid ? 'Valid format' : 'Invalid or missing');
+
 // Initialize Anthropic client
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -62,6 +71,21 @@ wss.on('connection', (ws) => {
     const data = JSON.parse(message);
     
     if (data.type === 'start') {
+      // Check if Speechmatics API key is valid before connecting
+      if (!speechmaticsKeyValid) {
+        console.error('Invalid or missing Speechmatics API key');
+        ws.send(JSON.stringify({
+          type: 'status',
+          status: 'apiError',
+          message: 'Speechmatics API key missing'
+        }));
+        ws.send(JSON.stringify({
+          type: 'error',
+          text: 'Speechmatics API key is missing or invalid. Please check your .env file.'
+        }));
+        return;
+      }
+      
       // Initialize Speechmatics WebSocket connection
       const speechmaticsUrl = 'wss://eu2.rt.speechmatics.com/v2';
       speechmaticsWs = new WebSocket(speechmaticsUrl);
@@ -113,6 +137,21 @@ wss.on('connection', (ws) => {
       speechmaticsWs.on('message', async (speechmaticsMessage) => {
         const response = JSON.parse(speechmaticsMessage);
         console.log('Speechmatics response type:', response.type);
+        
+        // Handle authentication errors
+        if (response.type === 'not_authorised') {
+          console.error('Speechmatics authentication error:', response);
+          ws.send(JSON.stringify({
+            type: 'status',
+            status: 'apiError',
+            message: 'Speechmatics API key error'
+          }));
+          ws.send(JSON.stringify({
+            type: 'error',
+            text: 'Speechmatics API authorization failed. Please check your API key.'
+          }));
+          return;
+        }
         
         // Handle recognition started event
         if (response.type === 'RecognitionStarted') {
