@@ -141,6 +141,24 @@ h2 {
     font-style: italic;
 }
 
+.partial-transcript {
+    color: #7f8c8d;
+}
+
+.final-transcript {
+    color: #2c3e50;
+    font-weight: bold;
+    position: relative;
+    padding-left: 20px;
+}
+
+.final-transcript::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #2ecc71;
+}
+
 .message {
     margin-bottom: 15px;
     padding: 10px;

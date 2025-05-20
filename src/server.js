@@ -77,6 +77,13 @@ wss.on('connection', (ws) => {
           }
         };
         
+        // Set Claude's initial status to waiting
+        ws.send(JSON.stringify({
+          type: 'status',
+          status: 'claudeWaiting',
+          message: 'Claude waiting for input'
+        }));
+        
         speechmaticsWs.send(JSON.stringify(config));
       });
       
@@ -113,6 +120,12 @@ wss.on('connection', (ws) => {
           
           // If it's a final transcript, send to Claude
           if (response.type === 'AddTranscript' && transcript.trim().length > 0) {
+            // Update API status to show final transcript received
+            ws.send(JSON.stringify({
+              type: 'status',
+              status: 'apiFinalTranscript',
+              message: 'Final transcript received'
+            }));
             // Add user message to history
             messageHistory.push({
               role: 'user',

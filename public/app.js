@@ -71,7 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleStatusUpdate(message);
             } else if (message.type === 'transcript') {
                 // Update transcript
-                transcriptElement.textContent = message.text;
+                transcriptElement.innerHTML = message.isFinal ? 
+                    `<span class="final-transcript">${message.text}</span>` : 
+                    `<span class="partial-transcript">${message.text}</span>`;
                 
                 // Add user message to conversation if final
                 if (message.isFinal) {
@@ -112,6 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'apiProcessing':
                     updateStatus('api', 'Processing', 'active');
                     break;
+                case 'apiFinalTranscript':
+                    updateStatus('api', 'Final Transcript', 'active');
+                    break;
                     
                 // Claude status updates
                 case 'claudeProcessing':
@@ -121,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateStatus('claude', 'Responded', 'active');
                     break;
                 case 'claudeWaiting':
-                    updateStatus('claude', 'Ready', 'active');
+                    updateStatus('claude', 'Waiting', 'active');
                     break;
                 case 'claudeError':
                     updateStatus('claude', 'Error');
@@ -291,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('connection', 'Listening', 'active');
             updateStatus('speech', 'Listening');
             updateStatus('api', 'Connecting', 'pending');
-            updateStatus('claude', 'Waiting');
+            updateStatus('claude', 'Waiting', 'active');
             
             startBtn.disabled = true;
             stopBtn.disabled = false;
