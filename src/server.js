@@ -89,9 +89,20 @@ wss.on('connection', (ws) => {
       
       speechmaticsWs.on('message', async (speechmaticsMessage) => {
         const response = JSON.parse(speechmaticsMessage);
+        console.log('Speechmatics response type:', response.type);
+        
+        // Handle recognition started event
+        if (response.type === 'RecognitionStarted') {
+          console.log('Recognition started successfully');
+          ws.send(JSON.stringify({
+            type: 'status',
+            status: 'apiProcessing',
+            message: 'Speech recognition active'
+          }));
+        }
         
         // When receiving the first response, update the API status
-        if (!apiResponseReceived) {
+        if (!apiResponseReceived && (response.type === 'AddTranscript' || response.type === 'AddPartialTranscript')) {
           apiResponseReceived = true;
           ws.send(JSON.stringify({
             type: 'status',
@@ -102,7 +113,7 @@ wss.on('connection', (ws) => {
         
         if (response.type === 'AddTranscript' || response.type === 'AddPartialTranscript') {
           const transcript = response.metadata.transcript;
-          console.log('Transcript:', transcript);
+          console.log(`${response.type}:`, transcript);
           
           // Update speech detection status
           ws.send(JSON.stringify({
@@ -120,6 +131,7 @@ wss.on('connection', (ws) => {
           
           // If it's a final transcript, send to Claude
           if (response.type === 'AddTranscript' && transcript.trim().length > 0) {
+            console.log('SENDING TO CLAUDE:', transcript);
             // Update API status to show final transcript received
             ws.send(JSON.stringify({
               type: 'status',
@@ -227,6 +239,13 @@ wss.on('connection', (ws) => {
         };
         speechmaticsWs.send(JSON.stringify(endMessage));
       }
+    } else if (data.type === 'forceClaudeStatus') {
+      // Manual trigger for Claude status update (for debugging)
+      ws.send(JSON.stringify({
+        type: 'status',
+        status: data.status,
+        message: data.message || 'Status updated manually'
+      }));
     }
   });
   

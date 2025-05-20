@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Function to handle status updates
         function handleStatusUpdate(message) {
-            console.log('Status update:', message);
+            console.log('Status update received:', message.status, message.message);
             
             switch (message.status) {
                 // Connection status updates
@@ -358,9 +358,41 @@ document.addEventListener('DOMContentLoaded', () => {
         stopBtn.disabled = true;
     }
     
+    // Debug function to cycle through Claude statuses
+    function debugClaudeStatus() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            console.log('WebSocket not connected');
+            return;
+        }
+        
+        const statuses = [
+            'claudeWaiting',
+            'claudeProcessing',
+            'claudeResponded',
+            'apiFinalTranscript'
+        ];
+        
+        const currentIndex = statuses.findIndex(status => 
+            claudeStatusElement.textContent === 'Processing' ? status === 'claudeProcessing' :
+            claudeStatusElement.textContent === 'Waiting' ? status === 'claudeWaiting' :
+            claudeStatusElement.textContent === 'Responded' ? status === 'claudeResponded' : -1
+        );
+        
+        const nextIndex = (currentIndex + 1) % statuses.length;
+        const nextStatus = statuses[nextIndex];
+        
+        console.log('Setting status to:', nextStatus);
+        ws.send(JSON.stringify({
+            type: 'forceClaudeStatus',
+            status: nextStatus,
+            message: `Debug: forcing status to ${nextStatus}`
+        }));
+    }
+    
     // Event listeners
     startBtn.addEventListener('click', startRecording);
     stopBtn.addEventListener('click', stopRecording);
+    document.getElementById('debugBtn').addEventListener('click', debugClaudeStatus);
     
     // Connect to server when page loads
     connectWebSocket();

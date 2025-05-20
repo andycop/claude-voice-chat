@@ -118,6 +118,20 @@ h2 {
     cursor: not-allowed;
 }
 
+.debug-btn {
+    padding: 5px 10px;
+    background-color: #9b59b6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.debug-btn:hover {
+    background-color: #8e44ad;
+}
+
 .conversation-container, 
 .transcript-container {
     background-color: white;
