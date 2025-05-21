@@ -285,6 +285,96 @@ h2 {
     align-self: flex-start;
 }
 
+/* Markdown formatting for Claude's responses */
+.assistant-message p {
+    margin-bottom: 0.75em;
+    line-height: 1.5;
+}
+
+.assistant-message p:last-child {
+    margin-bottom: 0;
+}
+
+.assistant-message code {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #f3f3f3;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    border: 1px solid #e0e0e0;
+}
+
+.assistant-message pre {
+    background-color: #f8f8f8;
+    padding: 0.8em;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 0.75em 0;
+    border: 1px solid #e0e0e0;
+}
+
+.assistant-message pre code {
+    background-color: transparent;
+    padding: 0;
+    border: none;
+    display: block;
+    white-space: pre;
+}
+
+.assistant-message ul, .assistant-message ol {
+    margin: 0.75em 0;
+    padding-left: 2em;
+}
+
+.assistant-message li {
+    margin-bottom: 0.3em;
+}
+
+.assistant-message h1, .assistant-message h2, .assistant-message h3,
+.assistant-message h4, .assistant-message h5, .assistant-message h6 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+}
+
+.assistant-message h1 { font-size: 1.4em; }
+.assistant-message h2 { font-size: 1.3em; }
+.assistant-message h3 { font-size: 1.2em; }
+.assistant-message h4 { font-size: 1.1em; }
+.assistant-message h5, .assistant-message h6 { font-size: 1em; }
+
+.assistant-message a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.assistant-message a:hover {
+    text-decoration: underline;
+}
+
+.assistant-message blockquote {
+    border-left: 3px solid #ccc;
+    padding-left: 1em;
+    margin: 0.75em 0 0.75em 0.5em;
+    color: #666;
+}
+
+.assistant-message table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.75em 0;
+}
+
+.assistant-message th, .assistant-message td {
+    border: 1px solid #ddd;
+    padding: 0.5em;
+    text-align: left;
+}
+
+.assistant-message th {
+    background-color: #f2f2f2;
+}
+
 .welcome-message {
     text-align: center;
     color: #7f8c8d;

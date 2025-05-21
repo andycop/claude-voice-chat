@@ -221,7 +221,7 @@ wss.on('connection', (ws) => {
       const claudeResponse = await anthropic.messages.create({
         model: 'claude-3-7-sonnet-latest',
         max_tokens: 1000,
-        system: 'You are a helpful voice assistant. Respond concisely as you are part of a real-time conversation.',
+        system: 'You are a helpful voice assistant. Respond concisely as you are part of a real-time conversation. Format your responses using Markdown when appropriate - you can use bold, italics, links, lists, code blocks, etc. to structure your responses.',
         messages: messageHistory
       });
       

@@ -303,10 +303,43 @@ document.addEventListener('DOMContentLoaded', () => {
             messageElement.dataset.temporary = 'true';
         }
         
-        // Add text
-        const textElement = document.createElement('p');
-        textElement.textContent = text;
-        messageElement.appendChild(textElement);
+        // Add text - parse markdown for assistant responses
+        if (role === 'assistant' && typeof marked !== 'undefined') {
+            try {
+                // Configure Marked.js options
+                marked.setOptions({
+                    breaks: true,          // Add <br> on single line breaks
+                    gfm: true,             // Use GitHub Flavored Markdown
+                    headerIds: false,      // Don't add ids to headers
+                    mangle: false,         // Don't mangle email links
+                    sanitize: false,       // Don't sanitize HTML (marked handles this)
+                });
+                
+                // Parse the markdown and set the HTML content
+                messageElement.innerHTML = marked.parse(text);
+                
+                // Make links open in a new tab for safety
+                const links = messageElement.querySelectorAll('a');
+                links.forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+                
+                console.log('Rendered markdown for Claude response');
+            } catch (error) {
+                console.error('Error parsing markdown:', error);
+                
+                // Fallback to plain text if markdown parsing fails
+                const textElement = document.createElement('p');
+                textElement.textContent = text;
+                messageElement.appendChild(textElement);
+            }
+        } else {
+            // Regular text for user messages
+            const textElement = document.createElement('p');
+            textElement.textContent = text;
+            messageElement.appendChild(textElement);
+        }
         
         // Add to conversation
         conversationElement.appendChild(messageElement);
