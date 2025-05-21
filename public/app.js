@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const conversationElement = document.getElementById('conversation');
     const transcriptElement = document.getElementById('transcript');
     const audioVisualizer = document.getElementById('audioVisualizer');
+    const microphoneSelect = document.getElementById('microphoneSelect');
     
     // WebSocket connection
     let ws = null;
@@ -398,8 +399,32 @@ document.addEventListener('DOMContentLoaded', () => {
             accumulatedTranscripts = [];
             transcriptElement.innerHTML = '';
             
-            // Get user media
-            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Get the selected microphone device ID
+            const selectedDeviceId = microphoneSelect.value;
+            
+            // Configure audio constraints
+            let audioConstraints = { audio: true }; // Default to system default
+            
+            // If a specific microphone is selected (not 'default'), use its device ID
+            if (selectedDeviceId && selectedDeviceId !== 'default') {
+                audioConstraints = {
+                    audio: {
+                        deviceId: { exact: selectedDeviceId }
+                    }
+                };
+                console.log(`Using selected microphone: ${selectedDeviceId}`);
+            } else {
+                console.log('Using default microphone');
+            }
+            
+            // Get user media with the selected microphone
+            mediaStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+            
+            // Now that we have permission, populate the microphone list if it wasn't already
+            // This ensures we get proper device labels
+            if (!microphoneSelect.options.length || microphoneSelect.options[0].value === '') {
+                await populateMicrophoneList();
+            }
             
             // Create audio context
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -713,6 +738,73 @@ document.addEventListener('DOMContentLoaded', () => {
     startRecordingBtn.addEventListener('click', startRecordingUI);
     stopRecordingBtn.addEventListener('click', stopRecordingUI);
     document.getElementById('debugBtn').addEventListener('click', debugClaudeStatus);
+    
+    // Function to populate microphone dropdown
+    async function populateMicrophoneList() {
+        try {
+            // Get the list of available media devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            
+            // Filter for audio input devices (microphones)
+            const microphones = devices.filter(device => device.kind === 'audioinput');
+            
+            // If we have microphones, populate the dropdown
+            if (microphones.length > 0) {
+                // Clear the loading option
+                microphoneSelect.innerHTML = '';
+                
+                // Add a default option that uses the system default microphone
+                const defaultOption = document.createElement('option');
+                defaultOption.value = 'default';
+                defaultOption.textContent = 'Default Microphone';
+                microphoneSelect.appendChild(defaultOption);
+                
+                // Add each microphone to the dropdown
+                microphones.forEach(mic => {
+                    const option = document.createElement('option');
+                    option.value = mic.deviceId;
+                    
+                    // Use the device label if available, otherwise use a generic name with the index
+                    if (mic.label) {
+                        option.textContent = mic.label;
+                    } else {
+                        option.textContent = `Microphone ${microphoneSelect.options.length}`;
+                    }
+                    
+                    microphoneSelect.appendChild(option);
+                });
+                
+                console.log(`Populated microphone dropdown with ${microphones.length} devices`);
+            } else {
+                // No microphones found
+                const noMicOption = document.createElement('option');
+                noMicOption.value = '';
+                noMicOption.textContent = 'No microphones found';
+                noMicOption.disabled = true;
+                microphoneSelect.innerHTML = '';
+                microphoneSelect.appendChild(noMicOption);
+                
+                console.warn('No microphones found');
+            }
+        } catch (error) {
+            console.error('Error enumerating audio devices:', error);
+            
+            // Set an error message in the dropdown
+            const errorOption = document.createElement('option');
+            errorOption.value = '';
+            errorOption.textContent = 'Error loading microphones';
+            errorOption.disabled = true;
+            microphoneSelect.innerHTML = '';
+            microphoneSelect.appendChild(errorOption);
+        }
+    }
+    
+    // Try to populate the microphone list immediately, but this may
+    // require permission that we don't have yet
+    populateMicrophoneList().catch(err => {
+        console.log('Initial microphone list population failed:', err);
+        console.log('This is normal if permissions haven\'t been granted yet');
+    });
     
     // Connect to server when page loads
     connectWebSocket();

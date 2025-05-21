@@ -38,6 +38,38 @@ h2 {
     gap: 10px;
 }
 
+.audio-settings {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.microphone-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.microphone-selector label {
+    font-weight: bold;
+    color: #444;
+}
+
+.microphone-dropdown {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+    min-width: 250px;
+    cursor: pointer;
+}
+
 .status-indicator {
     flex: 1;
     min-width: 160px;
