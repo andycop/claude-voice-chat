@@ -1,18 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM elements
+    // DOM elements - New UI
+    const listeningBtn = document.getElementById('listeningBtn');
+    const recordingBtn = document.getElementById('recordingBtn');
+    const recordingInfoElement = document.getElementById('recordingInfo');
+    const microphoneSelect = document.getElementById('microphoneSelect');
+    const transcriptElement = document.getElementById('transcript');
+    const conversationElement = document.getElementById('conversation');
+    const audioVisualizer = document.getElementById('audioVisualizer');
+    
+    // Legacy elements (hidden but still used by original code)
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const startRecordingBtn = document.getElementById('startRecordingBtn');
     const stopRecordingBtn = document.getElementById('stopRecordingBtn');
-    const recordingInfoElement = document.getElementById('recordingInfo');
-    const statusElement = document.getElementById('status');
-    const speechStatusElement = document.getElementById('speechStatus');
-    const apiStatusElement = document.getElementById('apiStatus');
-    const claudeStatusElement = document.getElementById('claudeStatus');
-    const conversationElement = document.getElementById('conversation');
-    const transcriptElement = document.getElementById('transcript');
-    const audioVisualizer = document.getElementById('audioVisualizer');
-    const microphoneSelect = document.getElementById('microphoneSelect');
+    const debugBtn = document.getElementById('debugBtn');
+    
+    // Status elements - new UI uses dots instead of text
+    const connectionStatusDot = document.querySelector('#connection-status .status-dot');
+    const speechStatusDot = document.querySelector('#speech-status .status-dot');
+    const apiStatusDot = document.querySelector('#api-status .status-dot');
+    const claudeStatusDot = document.querySelector('#claude-status .status-dot');
+    
+    // Track listening state
+    let isListening = false;
+    let isRecordingAudio = false;
     
     // WebSocket connection
     let ws = null;
@@ -48,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onopen = () => {
             console.log('Connected to server');
             updateStatus('connection', 'Connected');
-            startBtn.disabled = false;
+            listeningBtn.disabled = false;
             
             // Initialize all other statuses
             updateStatus('speech', 'Inactive');
@@ -62,14 +73,16 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('speech', 'Inactive');
             updateStatus('api', 'Inactive');
             updateStatus('claude', 'Inactive');
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
+            listeningBtn.disabled = false;
             
             // Stop audio visualizer if active
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+            
+            // Reset listening button state
+            setListeningState(false);
         };
         
         ws.onerror = (error) => {
@@ -173,9 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update recording info
                 recordingInfoElement.textContent = `Latest recording: ${formattedDuration} (see conversation for download link)`;
+                recordingInfoElement.classList.add('active');
                 
                 // Reset recording state
-                stopRecordingUI();
+                setRecordingState(false);
             } else if (message.type === 'error') {
                 console.error('Error:', message.text);
                 
@@ -199,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Stop audio recording if there's an error with it
                 if (message.text.includes('audio recording')) {
-                    stopRecordingUI();
+                    setRecordingState(false);
                 }
             } else if (message.type === 'info') {
                 console.log('Info:', message.text);
@@ -350,37 +364,78 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Function to update status indicators
     function updateStatus(type, status, statusClass = '') {
-        let element;
+        let dot;
         
         switch (type) {
             case 'connection':
-                element = statusElement;
+                dot = connectionStatusDot;
                 break;
             case 'speech':
-                element = speechStatusElement;
+                dot = speechStatusDot;
                 break;
             case 'api':
-                element = apiStatusElement;
+                dot = apiStatusDot;
                 break;
             case 'claude':
-                element = claudeStatusElement;
+                dot = claudeStatusDot;
                 break;
             default:
                 return;
         }
         
-        element.textContent = status;
+        // Clear existing classes and add active if needed
+        dot.className = 'status-dot';
         
-        // Reset classes
-        element.className = '';
+        if (status === 'Connected' || status === 'Active' || status === 'Ready' || status === 'Waiting' || status === 'Responded') {
+            dot.classList.add('active');
+        } else if (status === 'Processing' || status === 'Connecting' || status === 'Retrying' || status === 'Final Transcript') {
+            // For pending statuses, add a pulse animation via CSS
+            dot.classList.add('active');
+            dot.style.opacity = '0.7';
+        } else {
+            // Error or inactive status
+            dot.style.opacity = '1';
+        }
         
-        // Add status class if provided, otherwise determine based on status
-        if (statusClass) {
-            element.classList.add(`status-${statusClass}`);
-        } else if (status === 'Connected' || status === 'Active' || status === 'Ready') {
-            element.classList.add('status-active');
-        } else if (status === 'Processing' || status === 'Connecting') {
-            element.classList.add('status-pending');
+        // Also update the legacy status elements for backward compatibility
+        updateLegacyStatus(type, status, statusClass);
+    }
+    
+    // Update legacy status elements for backward compatibility
+    function updateLegacyStatus(type, status, statusClass = '') {
+        let element;
+        
+        switch (type) {
+            case 'connection':
+                element = document.getElementById('status');
+                break;
+            case 'speech':
+                element = document.getElementById('speechStatus');
+                break;
+            case 'api':
+                element = document.getElementById('apiStatus');
+                break;
+            case 'claude':
+                element = document.getElementById('claudeStatus');
+                break;
+            default:
+                return;
+        }
+        
+        if (element) {
+            element.textContent = status;
+            
+            // Reset classes
+            element.className = '';
+            
+            // Add status class if provided, otherwise determine based on status
+            if (statusClass) {
+                element.classList.add(`status-${statusClass}`);
+            } else if (status === 'Connected' || status === 'Active' || status === 'Ready') {
+                element.classList.add('status-active');
+            } else if (status === 'Processing' || status === 'Connecting') {
+                element.classList.add('status-pending');
+            }
         }
     }
     
@@ -393,20 +448,51 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get audio data
             audioAnalyser.getByteFrequencyData(audioDataArray);
             
-            // Draw bars
-            const barWidth = (audioVisualizer.width / audioDataArray.length) * 2.5;
+            // Draw bars horizontally with colorful gradient
+            const barWidth = (audioVisualizer.width / audioDataArray.length) * 1.5;
             let x = 0;
             
+            // Create gradient background pattern
+            const gradient = audioVisualizerContext.createLinearGradient(0, 0, audioVisualizer.width, 0);
+            gradient.addColorStop(0, "#8844ee");    // Purple
+            gradient.addColorStop(0.2, "#2b9df8");  // Blue
+            gradient.addColorStop(0.4, "#28e266");  // Green
+            gradient.addColorStop(0.6, "#ffde17");  // Yellow
+            gradient.addColorStop(0.8, "#ff8c44");  // Orange
+            gradient.addColorStop(1, "#f94169");    // Red
+            
             for (let i = 0; i < audioDataArray.length; i++) {
-                const barHeight = (audioDataArray[i] / 255) * audioVisualizer.height;
+                const barHeight = (audioDataArray[i] / 255) * audioVisualizer.height * 0.8;
                 
-                // Use gradient color based on frequency
-                const hue = (i / audioDataArray.length) * 240;
-                audioVisualizerContext.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                // Calculate position for centered bars
+                const yPos = (audioVisualizer.height - barHeight) / 2;
                 
-                audioVisualizerContext.fillRect(x, audioVisualizer.height - barHeight, barWidth, barHeight);
+                // Use a different hue for each bar to create a rainbow effect
+                const colorPosition = i / audioDataArray.length;
+                audioVisualizerContext.fillStyle = gradient;
                 
-                x += barWidth + 1;
+                // Draw with rounded corners if supported, otherwise use regular rectangles
+                if (audioVisualizerContext.roundRect) {
+                    audioVisualizerContext.beginPath();
+                    audioVisualizerContext.roundRect(
+                        x, 
+                        yPos, 
+                        Math.max(barWidth - 1, 1), // Ensure bars have at least 1px width
+                        barHeight,
+                        2 // Corner radius
+                    );
+                    audioVisualizerContext.fill();
+                } else {
+                    // Fallback for browsers that don't support roundRect
+                    audioVisualizerContext.fillRect(
+                        x, 
+                        yPos, 
+                        Math.max(barWidth - 1, 1),
+                        barHeight
+                    );
+                }
+                
+                x += barWidth;
             }
             
             // If any significant audio detected, update speech status
@@ -622,11 +708,13 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('api', 'Connecting', 'pending');
             updateStatus('claude', 'Waiting', 'active');
             
+            // Update legacy button states for compatibility
             startBtn.disabled = true;
             stopBtn.disabled = false;
         } catch (error) {
             console.error('Error starting recording:', error);
             alert('Failed to access microphone. Please ensure it is connected and that you have granted permission.');
+            setListeningState(false);
         }
     }
     
@@ -684,8 +772,65 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear canvas
         audioVisualizerContext.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
         
+        // Update legacy button states for compatibility
         startBtn.disabled = false;
         stopBtn.disabled = true;
+    }
+    
+    // Function to toggle listening state
+    function toggleListening() {
+        if (isListening) {
+            // Currently listening, so stop
+            stopRecording();
+            setListeningState(false);
+        } else {
+            // Not listening, so start
+            startRecording();
+            setListeningState(true);
+        }
+    }
+    
+    // Update UI based on listening state
+    function setListeningState(listening) {
+        isListening = listening;
+        
+        if (listening) {
+            listeningBtn.innerHTML = `<i class="fas fa-stop"></i> <span>Stop Listening</span>`;
+            listeningBtn.classList.add('active');
+        } else {
+            listeningBtn.innerHTML = `<i class="fas fa-play"></i> <span>Start Listening</span>`;
+            listeningBtn.classList.remove('active');
+        }
+    }
+    
+    // Toggle recording state
+    function toggleRecording() {
+        if (isRecordingAudio) {
+            // Currently recording, so stop
+            stopRecordingAudio();
+            setRecordingState(false);
+        } else {
+            // Not recording, so start
+            startRecordingAudio();
+            setRecordingState(true);
+        }
+    }
+    
+    // Update UI based on recording state
+    function setRecordingState(recording) {
+        isRecordingAudio = recording;
+        
+        if (recording) {
+            recordingBtn.classList.add('active');
+            recordingBtn.innerHTML = `<i class="fas fa-stop-circle"></i> <span>Stop</span>`;
+            // Trigger the legacy button click event
+            startRecordingBtn.click();
+        } else {
+            recordingBtn.classList.remove('active');
+            recordingBtn.innerHTML = `<i class="fas fa-record-vinyl"></i> <span>Record</span>`;
+            // Trigger the legacy button click event
+            stopRecordingBtn.click();
+        }
     }
     
     // Debug function to cycle through Claude statuses
@@ -702,12 +847,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'apiFinalTranscript'
         ];
         
-        const currentIndex = statuses.findIndex(status => 
-            claudeStatusElement.textContent === 'Processing' ? status === 'claudeProcessing' :
-            claudeStatusElement.textContent === 'Waiting' ? status === 'claudeWaiting' :
-            claudeStatusElement.textContent === 'Responded' ? status === 'claudeResponded' : -1
-        );
+        // Get current status from the dot's class
+        let currentStatus = 'none';
+        if (claudeStatusDot.classList.contains('active')) {
+            currentStatus = 'claudeWaiting';
+        }
         
+        const currentIndex = statuses.findIndex(status => status === currentStatus);
         const nextIndex = (currentIndex + 1) % statuses.length;
         const nextStatus = statuses[nextIndex];
         
@@ -719,23 +865,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     }
     
-    // Recording timer function
-    function updateRecordingTimer() {
-        if (isRecording && recordingStartTime) {
-            const elapsedTime = Math.floor((new Date() - recordingStartTime) / 1000);
-            const minutes = Math.floor(elapsedTime / 60);
-            const seconds = elapsedTime % 60;
-            recordingInfoElement.textContent = `Recording: ${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }
-    }
-    
-    // Start audio recording UI update
-    function startRecordingUI() {
+    // Start audio recording
+    function startRecordingAudio() {
         isRecording = true;
         recordingStartTime = new Date();
-        startRecordingBtn.disabled = true;
-        stopRecordingBtn.disabled = false;
         recordingInfoElement.textContent = 'Recording: 0:00';
+        recordingInfoElement.classList.add('active');
         
         // Update timer every second
         recordingTimer = setInterval(updateRecordingTimer, 1000);
@@ -746,12 +881,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Stop audio recording UI update
-    function stopRecordingUI() {
+    // Stop audio recording
+    function stopRecordingAudio() {
         isRecording = false;
         recordingStartTime = null;
-        startRecordingBtn.disabled = false;
-        stopRecordingBtn.disabled = true;
         
         // Clear timer
         if (recordingTimer) {
@@ -765,12 +898,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Event listeners
-    startBtn.addEventListener('click', startRecording);
-    stopBtn.addEventListener('click', stopRecording);
-    startRecordingBtn.addEventListener('click', startRecordingUI);
-    stopRecordingBtn.addEventListener('click', stopRecordingUI);
-    document.getElementById('debugBtn').addEventListener('click', debugClaudeStatus);
+    // Recording timer function
+    function updateRecordingTimer() {
+        if (isRecording && recordingStartTime) {
+            const elapsedTime = Math.floor((new Date() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            recordingInfoElement.textContent = `Recording: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
     
     // Function to populate microphone dropdown
     async function populateMicrophoneList() {
@@ -831,6 +967,15 @@ document.addEventListener('DOMContentLoaded', () => {
             microphoneSelect.appendChild(errorOption);
         }
     }
+    
+    // Event listeners for new UI
+    listeningBtn.addEventListener('click', toggleListening);
+    recordingBtn.addEventListener('click', toggleRecording);
+    
+    // Legacy event listeners (hidden buttons, used for backward compatibility)
+    startBtn.addEventListener('click', startRecording);
+    stopBtn.addEventListener('click', stopRecording);
+    debugBtn.addEventListener('click', debugClaudeStatus);
     
     // Try to populate the microphone list immediately, but this may
     // require permission that we don't have yet

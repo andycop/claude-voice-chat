@@ -5,68 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude Voice Chat</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <h1>Claude Voice Chat</h1>
+        <header class="app-header">
+            <div class="app-logo">
+                <div class="logo-circle"></div>
+                <h1>Claude Voice Chat</h1>
+            </div>
+        </header>
         
-        <div class="status-indicators">
-            <div class="status-indicator">
-                <span class="status-label">Connection:</span>
-                <span id="status">Disconnected</span>
+        <div class="status-bar">
+            <div class="status-indicators">
+                <div class="status-indicator" id="connection-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Connected</span>
+                </div>
+                <div class="status-indicator" id="speech-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Speech</span>
+                </div>
+                <div class="status-indicator" id="api-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">API</span>
+                </div>
+                <div class="status-indicator" id="claude-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Claude</span>
+                </div>
             </div>
-            <div class="status-indicator">
-                <span class="status-label">Speech Detection:</span>
-                <span id="speechStatus">Inactive</span>
-            </div>
-            <div class="status-indicator">
-                <span class="status-label">API Processing:</span>
-                <span id="apiStatus">Inactive</span>
-            </div>
-            <div class="status-indicator">
-                <span class="status-label">Claude:</span>
-                <span id="claudeStatus">Inactive</span>
+            
+            <div class="action-buttons">
+                <div class="mic-dropdown">
+                    <button id="micBtn" class="icon-btn">
+                        <i class="fas fa-microphone"></i>
+                        <span>Mic</span>
+                    </button>
+                    <div class="dropdown-content" id="micDropdown">
+                        <select id="microphoneSelect" class="microphone-dropdown">
+                            <option value="">Loading microphones...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button id="listeningBtn" class="primary-btn">
+                    <i class="fas fa-play"></i>
+                    <span>Start Listening</span>
+                </button>
+                
+                <button id="recordingBtn" class="icon-btn">
+                    <i class="fas fa-record-vinyl"></i>
+                    <span>Record</span>
+                </button>
             </div>
         </div>
         
-        <div class="audio-settings">
-            <div class="microphone-selector">
-                <label for="microphoneSelect">Microphone:</label>
-                <select id="microphoneSelect" class="microphone-dropdown">
-                    <option value="">Loading microphones...</option>
-                </select>
+        <div class="transcript-section">
+            <div class="visualizer-container">
+                <canvas id="audioVisualizer" width="700" height="60"></canvas>
             </div>
-        </div>
-
-        <div class="controls">
-            <button id="startBtn" class="primary-btn">Start Listening</button>
-            <button id="stopBtn" class="primary-btn" disabled>Stop Listening</button>
-            <button id="debugBtn" class="debug-btn">Debug Status</button>
-        </div>
-        
-        <div class="recording-controls">
-            <button id="startRecordingBtn" class="recording-btn">Start Recording Audio</button>
-            <button id="stopRecordingBtn" class="recording-btn" disabled>Stop Recording</button>
-            <div id="recordingInfo" class="recording-info"></div>
-        </div>
-        
-        <div class="audio-visualizer">
-            <canvas id="audioVisualizer" width="700" height="60"></canvas>
+            <div class="transcript-container">
+                <div id="transcript" class="transcript"></div>
+            </div>
         </div>
         
         <div class="conversation-container">
             <h2>Conversation</h2>
             <div id="conversation" class="conversation">
                 <div class="welcome-message">
-                    <p>Welcome to Claude Voice Chat. Click "Start Listening" to begin.</p>
+                    <div class="welcome-icon">
+                        <i class="fas fa-microphone-alt"></i>
+                    </div>
+                    <p>Welcome to Claude Voice Chat.</p>
+                    <p>Click "Start Listening" to begin.</p>
+                    <div class="audio-waves">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="transcript-container">
-            <h2>Current Transcript</h2>
-            <div id="transcript" class="transcript"></div>
-        </div>
+        <div id="recordingInfo" class="recording-info"></div>
+        
+        <!-- Hidden buttons for backward compatibility -->
+        <button id="startBtn" style="display: none;">Start Listening</button>
+        <button id="stopBtn" style="display: none;">Stop Listening</button>
+        <button id="startRecordingBtn" style="display: none;">Start Recording</button>
+        <button id="stopRecordingBtn" style="display: none;">Stop Recording</button>
+        <button id="debugBtn" style="display: none;">Debug Status</button>
     </div>
 
     <!-- Add Marked.js for Markdown parsing -->

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Voice Chat is a real-time voice chat application that uses the Speechmatics API for speech recognition and the Claude AI API for generating responses. The application allows users to speak into their microphone, have their speech transcribed in real-time, and receive responses from Claude.
+Claude Voice Chat is a real-time voice chat application that uses the Speechmatics API for speech recognition and the Claude AI API for generating responses. The application allows users to speak into their microphone, have their speech transcribed in real-time, and receive responses from Claude with markdown formatting support.
 
 ## Development Commands
 
@@ -27,6 +27,20 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 PORT=3000
 ```
 
+If a `.env` file is not found, the application will automatically create one using the template from `.env.example`. You will need to edit this file and add your API keys before the application can function properly.
+
+## Project Structure
+
+- `/src` - Server-side code
+  - `server.js` - Main server file with WebSocket handling and API integrations
+- `/public` - Client-side code
+  - `index.html` - Frontend UI structure
+  - `app.js` - Frontend logic and WebSocket client
+  - `audio-processor.js` - Audio processing with Web Audio API
+  - `styles.css` - UI styling
+- `/logs` - Server logs (created automatically)
+- `/recordings` - Saved audio recordings (created automatically)
+
 ## Architecture
 
 ### Backend
@@ -44,6 +58,8 @@ PORT=3000
 - WebSocket client for real-time communication with the server
 - Audio visualization for microphone input
 - AudioWorklet for efficient audio processing with fallback to ScriptProcessor
+- Microphone selection dropdown for choosing input device
+- Markdown rendering for Claude's responses using marked.js
 
 ### Data Flow
 
@@ -52,7 +68,7 @@ PORT=3000
 3. Server forwards audio to Speechmatics API for real-time transcription
 4. Transcribed text is sent back to the client and displayed
 5. Final transcriptions are sent to Claude API for processing
-6. Claude's responses are sent back to the client and displayed
+6. Claude's responses are sent back to the client and displayed with markdown formatting
 
 ### Logging System
 
@@ -85,6 +101,12 @@ The application includes a comprehensive logging system:
 - Detects and reports API key validation issues
 - Handles Speechmatics API failures with automatic retry mechanisms
 - Manages concurrent session limitations in Speechmatics
+
+### UI Features
+- Real-time status indicators for connection, speech detection, API processing, and Claude's status
+- Audio visualization for microphone input
+- Markdown rendering for Claude's responses
+- Download links for recorded conversations
 
 ## Important Files
 
