@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
+    const startRecordingBtn = document.getElementById('startRecordingBtn');
+    const stopRecordingBtn = document.getElementById('stopRecordingBtn');
+    const recordingInfoElement = document.getElementById('recordingInfo');
     const statusElement = document.getElementById('status');
     const speechStatusElement = document.getElementById('speechStatus');
     const apiStatusElement = document.getElementById('apiStatus');
@@ -13,9 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // WebSocket connection
     let ws = null;
     
-    // Transcript tracking
-    let latestPartialTranscript = '';
+    // Transcript tracking for showing current speech segment
     let finalTranscripts = [];
+    let accumulatedTranscripts = [];
     
     // Audio visualizer
     let audioVisualizerContext = audioVisualizer.getContext('2d');
@@ -28,6 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let mediaStream = null;
     let mediaRecorder = null;
     let audioProcessor = null;
+    
+    // Audio recording state
+    let isRecording = false;
+    let recordingStartTime = null;
+    let recordingTimer = null;
     
     // Function to establish WebSocket connection
     function connectWebSocket() {
@@ -82,60 +90,129 @@ document.addEventListener('DOMContentLoaded', () => {
                 const transcriptSource = source || 'unknown';
                 
                 // Add transcript to console for debugging
-                console.log(`Received ${transcriptType} transcript from ${transcriptSource}: "${text}"`);
+                console.log(`Received individual ${transcriptType} transcript from ${transcriptSource}: "${text}"`);
                 
-                // Update transcript tracking
-                if (isFinal) {
-                    // Store final transcript
-                    finalTranscripts.push(text);
-                    latestPartialTranscript = ''; // Reset partial
-                    
-                    // Update UI with final transcript
-                    const html = `
-                        <div class="final-transcript-container">
-                            <span class="final-transcript">${text}</span>
-                        </div>
-                        <div class="partial-transcript-container">
-                            <span class="partial-transcript">${latestPartialTranscript}</span>
-                        </div>
-                    `;
-                    transcriptElement.innerHTML = html;
-                    
-                    // Add to conversation
-                    addMessageToConversation('user', text);
+                // Store final transcript with timestamp
+                const timestamp = new Date().toLocaleTimeString();
+                
+                // For partial transcripts or final fragments, we're building a sentence
+                // Update timestamp for this fragment
+                const segment = { text, timestamp, isFinal };
+                
+                // If this is the first transcript or a final transcript after partials
+                if (accumulatedTranscripts.length === 0 || isFinal) {
+                    accumulatedTranscripts.push(segment);
                 } else {
-                    // Update latest partial transcript
-                    latestPartialTranscript = text;
-                    
-                    // Show both final and partial transcripts
-                    let html = '';
-                    
-                    // Add the most recent final transcript if it exists
-                    if (finalTranscripts.length > 0) {
-                        const recentFinal = finalTranscripts[finalTranscripts.length - 1];
-                        html += `
-                            <div class="final-transcript-container">
-                                <span class="final-transcript">${recentFinal}</span>
-                            </div>
-                        `;
+                    // Replace the last partial transcript with the new one (we're receiving updated partials)
+                    if (!accumulatedTranscripts[accumulatedTranscripts.length - 1].isFinal) {
+                        accumulatedTranscripts[accumulatedTranscripts.length - 1] = segment;
+                    } else {
+                        // If last segment was final, add this as a new segment
+                        accumulatedTranscripts.push(segment);
                     }
-                    
-                    // Add the current partial transcript
-                    html += `
-                        <div class="partial-transcript-container">
-                            <span class="partial-transcript">${latestPartialTranscript}</span>
-                        </div>
-                    `;
-                    
-                    transcriptElement.innerHTML = html;
                 }
+                
+                // Display all fragments as a flowing sentence, not separate items
+                let displayText = '';
+                accumulatedTranscripts.forEach(item => {
+                    displayText += item.text + ' ';
+                });
+                
+                // Remove extra spaces
+                displayText = displayText.trim();
+                
+                // Update UI with current sentence being built
+                transcriptElement.innerHTML = `
+                    <div class="current-transcript-container">
+                        <span class="current-transcript">${displayText}</span>
+                    </div>
+                `;
+                
+                // We don't add individual transcripts to the conversation anymore,
+                // as we'll show the complete sentences from completeTranscript messages
+            } else if (message.type === 'completeTranscript') {
+                // Get the complete transcript (after silence detection or EndOfTranscript)
+                // This represents the end of a logical sentence
+                const { text, isFinal, source } = message;
+                
+                console.log(`Received COMPLETE transcript to send to Claude: "${text}"`);
+                
+                // Add the complete transcript to the conversation
+                addMessageToConversation('user', text, false); // false = permanent message
+                
+                // Clear the accumulated transcripts display since we've now got the complete sentence
+                // and we're starting a new sentence
+                accumulatedTranscripts = [];
+                transcriptElement.innerHTML = '';
             } else if (message.type === 'response') {
                 // Add Claude's response to conversation
                 addMessageToConversation('assistant', message.text);
-                // Clear transcript after processing
+                // Clear transcript and accumulated transcripts after receiving Claude's response
                 transcriptElement.textContent = '';
+                accumulatedTranscripts = [];
+            } else if (message.type === 'audioRecorded') {
+                // Add download link for recorded audio
+                const { filePath, duration } = message;
+                
+                // Format duration to show minutes and seconds
+                const durationMinutes = Math.floor(duration / 60);
+                const durationSeconds = Math.floor(duration % 60);
+                const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+                
+                const infoElement = document.createElement('div');
+                infoElement.className = 'info-message';
+                infoElement.innerHTML = `Audio recording saved (${formattedDuration})<br/>
+                    <a href="${filePath}" class="download-link" download>Download WAV File</a>`;
+                
+                // Add info to conversation
+                conversationElement.appendChild(infoElement);
+                
+                // Scroll to bottom
+                conversationElement.scrollTop = conversationElement.scrollHeight;
+                
+                // Update recording info
+                recordingInfoElement.textContent = `Latest recording: ${formattedDuration} (see conversation for download link)`;
+                
+                // Reset recording state
+                stopRecordingUI();
             } else if (message.type === 'error') {
                 console.error('Error:', message.text);
+                
+                // Display error in the UI instead of using an alert
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message';
+                errorElement.textContent = message.text;
+                
+                // Add error to conversation
+                conversationElement.appendChild(errorElement);
+                
+                // Scroll to bottom
+                conversationElement.scrollTop = conversationElement.scrollHeight;
+                
+                // Stop recording if it's a critical error
+                if (message.text.includes('API key') || 
+                    message.text.includes('authorization') || 
+                    message.text.includes('timed out')) {
+                    stopRecording();
+                }
+                
+                // Stop audio recording if there's an error with it
+                if (message.text.includes('audio recording')) {
+                    stopRecordingUI();
+                }
+            } else if (message.type === 'info') {
+                console.log('Info:', message.text);
+                
+                // Display info in the UI
+                const infoElement = document.createElement('div');
+                infoElement.className = 'info-message';
+                infoElement.textContent = message.text;
+                
+                // Add info to conversation
+                conversationElement.appendChild(infoElement);
+                
+                // Scroll to bottom
+                conversationElement.scrollTop = conversationElement.scrollHeight;
             }
         };
         
@@ -168,6 +245,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateStatus('api', 'Error');
                     stopRecording(); // Stop recording on API error
                     break;
+                case 'apiRetrying':
+                    updateStatus('api', 'Retrying', 'pending');
+                    break;
                 case 'apiFinalTranscript':
                     updateStatus('api', 'Final Transcript', 'active');
                     break;
@@ -190,16 +270,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Function to add message to conversation
-    function addMessageToConversation(role, text) {
+    function addMessageToConversation(role, text, isTemporary = false) {
         // Remove welcome message if present
         const welcomeMessage = conversationElement.querySelector('.welcome-message');
         if (welcomeMessage) {
             welcomeMessage.remove();
         }
         
+        // If this is temporary and from the user (part of current speech), 
+        // we want to update the last message instead of adding a new one
+        if (isTemporary && role === 'user') {
+            // Find the last user message
+            const lastUserMessage = conversationElement.querySelector('.user-message:last-child');
+            
+            if (lastUserMessage && lastUserMessage.dataset.temporary === 'true') {
+                // Replace text content
+                const textElement = lastUserMessage.querySelector('p');
+                if (textElement) {
+                    textElement.textContent = text;
+                    // Scroll to bottom
+                    conversationElement.scrollTop = conversationElement.scrollHeight;
+                    return;
+                }
+            }
+        }
+        
         // Create message element
         const messageElement = document.createElement('div');
         messageElement.className = `message ${role}-message`;
+        if (isTemporary) {
+            messageElement.dataset.temporary = 'true';
+        }
         
         // Add text
         const textElement = document.createElement('p');
@@ -293,8 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function startRecording() {
         try {
             // Reset transcript tracking
-            latestPartialTranscript = '';
             finalTranscripts = [];
+            accumulatedTranscripts = [];
             transcriptElement.innerHTML = '';
             
             // Get user media
@@ -306,44 +407,150 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create media recorder
             mediaRecorder = new MediaRecorder(mediaStream);
             
-            // Create script processor for audio processing
+            // Create source node and audio analyzer for visualization
             const sourceNode = audioContext.createMediaStreamSource(mediaStream);
-            audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-            
-            // Set up audio analyzer for visualization
             audioAnalyser = audioContext.createAnalyser();
             audioAnalyser.fftSize = 256;
             const bufferLength = audioAnalyser.frequencyBinCount;
             audioDataArray = new Uint8Array(bufferLength);
             
-            // Connect nodes
+            // Connect the analyzer for visualizations
             sourceNode.connect(audioAnalyser);
-            audioAnalyser.connect(audioProcessor);
-            sourceNode.connect(audioProcessor);
-            audioProcessor.connect(audioContext.destination);
+            
+            // Check if AudioWorklet is supported
+            if (audioContext.audioWorklet) {
+                console.log('Using AudioWorklet for audio processing');
+                
+                try {
+                    // Load and initialize the audio worklet
+                    await audioContext.audioWorklet.addModule('audio-processor.js');
+                    
+                    // Create the AudioWorkletNode
+                    audioProcessor = new AudioWorkletNode(audioContext, 'audio-sample-processor');
+                    
+                    // Connect the source to the processor
+                    sourceNode.connect(audioProcessor);
+                    audioProcessor.connect(audioContext.destination);
+                    
+                    // Set up message handler for processed audio data
+                    audioProcessor.port.onmessage = (event) => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            // Get audio data from the worklet
+                            const int16Array = event.data.audio;
+                            const actualSampleRate = event.data.sampleRate || 16000;
+                            
+                            // Log sample rate only once for debugging
+                            if (!audioProcessor.sampleRateLogged) {
+                                console.log(`Sending audio with sample rate: ${actualSampleRate}Hz`);
+                                audioProcessor.sampleRateLogged = true;
+                            }
+                            
+                            // Send audio data to server
+                            ws.send(JSON.stringify({
+                                type: 'audio',
+                                audio: Array.from(int16Array),
+                                encoding: 'pcm_s16le',
+                                sample_rate: actualSampleRate
+                            }));
+                        }
+                    };
+                } catch (workletError) {
+                    console.error('AudioWorklet failed to initialize:', workletError);
+                    console.log('Falling back to ScriptProcessor');
+                    useScriptProcessor(sourceNode);
+                }
+            } else {
+                console.log('AudioWorklet not supported, falling back to ScriptProcessor');
+                useScriptProcessor(sourceNode);
+            }
             
             // Start audio visualizer
             drawAudioVisualizer();
             
-            // Process audio data
-            audioProcessor.onaudioprocess = (e) => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    // Get audio data
-                    const inputData = e.inputBuffer.getChannelData(0);
+            // Function to use ScriptProcessor as fallback
+            function useScriptProcessor(sourceNode) {
+                // Create script processor for audio processing
+                audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                // Connect nodes
+                sourceNode.connect(audioProcessor);
+                audioProcessor.connect(audioContext.destination);
+                
+                // Get the sample rate
+                const currentSampleRate = audioContext.sampleRate;
+                const targetSampleRate = 16000; // 16kHz
+                const resampleRatio = targetSampleRate / currentSampleRate;
+                
+                console.log(`ScriptProcessor: Resampling from ${currentSampleRate}Hz to ${targetSampleRate}Hz (ratio: ${resampleRatio})`);
+                
+                // Simple resampling function
+                function resampleAudio(samples, ratio) {
+                    // If sample rates match, no resampling needed
+                    if (ratio === 1) return samples;
                     
-                    // Convert float32 to int16
-                    const int16Array = new Int16Array(inputData.length);
-                    for (let i = 0; i < inputData.length; i++) {
-                        int16Array[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                    // Calculate how many output samples we'll generate
+                    const outputLength = Math.floor(samples.length * ratio);
+                    const output = new Float32Array(outputLength);
+                    
+                    // Downsampling from higher rate to lower rate
+                    if (ratio < 1) {
+                        // Simple averaging for downsampling
+                        for (let i = 0; i < outputLength; i++) {
+                            const srcIndex = Math.floor(i / ratio);
+                            output[i] = samples[srcIndex];
+                        }
+                    }
+                    // Upsampling from lower rate to higher rate
+                    else {
+                        // Linear interpolation for upsampling
+                        for (let i = 0; i < outputLength; i++) {
+                            const srcIndex = i / ratio;
+                            const srcIndexFloor = Math.floor(srcIndex);
+                            const srcIndexCeil = Math.min(samples.length - 1, srcIndexFloor + 1);
+                            const t = srcIndex - srcIndexFloor; // Interpolation factor
+                            
+                            // Linear interpolation between two nearest samples
+                            output[i] = (1 - t) * samples[srcIndexFloor] + t * samples[srcIndexCeil];
+                        }
                     }
                     
-                    // Send audio data to server
-                    ws.send(JSON.stringify({
-                        type: 'audio',
-                        audio: Array.from(int16Array)
-                    }));
+                    return output;
                 }
-            };
+                
+                // Flag to track if we've logged the sample rate
+                let sampleRateLogged = false;
+                
+                // Process audio data
+                audioProcessor.onaudioprocess = (e) => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        // Get audio data
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        
+                        // Resample to 16kHz
+                        const resampledData = resampleAudio(inputData, resampleRatio);
+                        
+                        // Convert float32 to int16
+                        const int16Array = new Int16Array(resampledData.length);
+                        for (let i = 0; i < resampledData.length; i++) {
+                            int16Array[i] = Math.max(-32768, Math.min(32767, resampledData[i] * 32768));
+                        }
+                        
+                        // Log sample rate only once for debugging
+                        if (!sampleRateLogged) {
+                            console.log(`Sending audio with sample rate: ${targetSampleRate}Hz from ScriptProcessor`);
+                            sampleRateLogged = true;
+                        }
+                        
+                        // Send audio data to server
+                        ws.send(JSON.stringify({
+                            type: 'audio',
+                            audio: Array.from(int16Array),
+                            encoding: 'pcm_s16le',
+                            sample_rate: targetSampleRate
+                        }));
+                    }
+                };
+            }
             
             // Start recording
             mediaRecorder.start();
@@ -386,6 +593,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Release resources
         if (audioProcessor) {
             audioProcessor.disconnect();
+            
+            // Clean up based on type of processor
+            if (audioProcessor.port) {
+                audioProcessor.port.onmessage = null;
+            }
+            
             audioProcessor = null;
         }
         
@@ -448,9 +661,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     }
     
+    // Recording timer function
+    function updateRecordingTimer() {
+        if (isRecording && recordingStartTime) {
+            const elapsedTime = Math.floor((new Date() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            recordingInfoElement.textContent = `Recording: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
+    
+    // Start audio recording UI update
+    function startRecordingUI() {
+        isRecording = true;
+        recordingStartTime = new Date();
+        startRecordingBtn.disabled = true;
+        stopRecordingBtn.disabled = false;
+        recordingInfoElement.textContent = 'Recording: 0:00';
+        
+        // Update timer every second
+        recordingTimer = setInterval(updateRecordingTimer, 1000);
+        
+        // Send command to server
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'startRecording' }));
+        }
+    }
+    
+    // Stop audio recording UI update
+    function stopRecordingUI() {
+        isRecording = false;
+        recordingStartTime = null;
+        startRecordingBtn.disabled = false;
+        stopRecordingBtn.disabled = true;
+        
+        // Clear timer
+        if (recordingTimer) {
+            clearInterval(recordingTimer);
+            recordingTimer = null;
+        }
+        
+        // Send command to server
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'stopRecording' }));
+        }
+    }
+    
     // Event listeners
     startBtn.addEventListener('click', startRecording);
     stopBtn.addEventListener('click', stopRecording);
+    startRecordingBtn.addEventListener('click', startRecordingUI);
+    stopRecordingBtn.addEventListener('click', stopRecordingUI);
     document.getElementById('debugBtn').addEventListener('click', debugClaudeStatus);
     
     // Connect to server when page loads

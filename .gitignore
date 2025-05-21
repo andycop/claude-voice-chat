@@ -3,3 +3,8 @@ node_modules/
 npm-debug.log
 dist/
 .DS_Store
+recordings/recording-1747747595860.pcm
+recordings/recording-1747747595860.wav
+api-call-flow.png
+logs/server.log
+logs/error.log

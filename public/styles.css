@@ -163,6 +163,28 @@ h2 {
     background-color: #e8f8f5;
     border-radius: 5px;
     border-left: 3px solid #2ecc71;
+    position: relative;
+    margin-bottom: 8px;
+}
+
+.final-transcript-container.current {
+    background-color: #e8f8f5;
+    border-left: 3px solid #2ecc71;
+}
+
+.final-transcript-container.previous {
+    background-color: #f5f5f5;
+    border-left: 3px solid #7f8c8d;
+    opacity: 0.8;
+}
+
+.transcript-timestamp {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    font-size: 0.7rem;
+    color: #95a5a6;
+    font-style: normal;
 }
 
 .partial-transcript-container {
@@ -182,6 +204,28 @@ h2 {
     font-weight: bold;
     position: relative;
     padding-left: 20px;
+}
+
+.current-transcript-container {
+    padding: 8px;
+    background-color: #f0f7fc;
+    border-radius: 5px;
+    border-left: 3px solid #3498db;
+    position: relative;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.current-transcript {
+    color: #34495e;
+    font-weight: normal;
+    display: block;
+    line-height: 1.5;
+}
+
+@keyframes pulse {
+    0% { border-left-color: #3498db; }
+    50% { border-left-color: #2980b9; }
+    100% { border-left-color: #3498db; }
 }
 
 .final-transcript::before {
@@ -213,4 +257,82 @@ h2 {
     text-align: center;
     color: #7f8c8d;
     font-style: italic;
+}
+
+.error-message {
+    background-color: #fdeded;
+    border-left: 3px solid #e74c3c;
+    padding: 10px 15px;
+    margin: 10px 0;
+    color: #c0392b;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    max-width: 100%;
+    text-align: center;
+}
+
+.info-message {
+    background-color: #edf6fd;
+    border-left: 3px solid #3498db;
+    padding: 10px 15px;
+    margin: 10px 0;
+    color: #2980b9;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    max-width: 100%;
+    text-align: center;
+}
+
+.recording-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.recording-btn {
+    padding: 8px 15px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.recording-btn:hover {
+    background-color: #c0392b;
+}
+
+.recording-btn:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.recording-info {
+    width: 100%;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.download-link {
+    display: inline-block;
+    padding: 5px 10px;
+    background-color: #2ecc71;
+    color: white;
+    border-radius: 3px;
+    text-decoration: none;
+    margin-top: 5px;
+    transition: background-color 0.3s;
+}
+
+.download-link:hover {
+    background-color: #27ae60;
 }
