@@ -39,7 +39,10 @@ body {
 .app-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
 .app-logo {
@@ -70,54 +73,53 @@ h2 {
     margin-bottom: 15px;
 }
 
-/* Status Bar */
-.status-bar {
+/* Header Controls */
+.header-controls {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 10px 0;
+    gap: 20px;
 }
 
 .status-indicators {
     display: flex;
-    gap: 15px;
+    gap: 8px;
 }
 
 .status-indicator {
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-size: 14px;
+    justify-content: center;
+    cursor: help;
 }
 
 .status-dot {
     display: inline-block;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background-color: var(--error-color);
-}
-
-.status-text {
-    color: var(--text-secondary);
+    transition: all 0.3s ease;
 }
 
 /* Status States */
 #connection-status .status-dot.active {
     background-color: var(--success-color);
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
 }
 
 #speech-status .status-dot.active {
     background-color: var(--warning-color);
+    box-shadow: 0 0 5px rgba(255, 152, 0, 0.5);
 }
 
 #api-status .status-dot.active {
     background-color: var(--warning-color);
+    box-shadow: 0 0 5px rgba(255, 152, 0, 0.5);
 }
 
 #claude-status .status-dot.active {
     background-color: var(--primary-color);
+    box-shadow: 0 0 5px rgba(109, 90, 222, 0.5);
 }
 
 /* Action Buttons */
@@ -528,14 +530,25 @@ h2 {
         width: 100%;
     }
     
-    .status-bar {
+    .app-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .header-controls {
+        width: 100%;
         flex-direction: column;
         gap: 15px;
     }
     
+    .action-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
     .status-indicators {
-        flex-wrap: wrap;
-        justify-content: center;
+        align-self: center;
     }
     
     .message {
