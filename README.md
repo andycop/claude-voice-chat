@@ -38,6 +38,8 @@ A real-time voice chat application using Speechmatics for speech recognition and
 
 ## Usage
 
+### Local Development
+
 1. Start the server
    ```
    npm start
@@ -52,6 +54,31 @@ A real-time voice chat application using Speechmatics for speech recognition and
 3. Click the "Start Listening" button and begin speaking
 
 4. The application will transcribe your speech in real-time and show Claude's responses
+
+### Docker Deployment
+
+1. Make sure you have Docker and Docker Compose installed on your server
+
+2. Clone the repository and navigate to the project directory
+   ```
+   git clone <repository-url>
+   cd claude-voice-chat
+   ```
+
+3. Create a `.env` file with your API keys
+
+4. Build and start the Docker container
+   ```
+   docker-compose up -d
+   ```
+
+5. The application will be available at `http://<your-server-ip>:3000`
+
+### Environment Variables
+
+- `SPEECHMATICS_API_KEY`: Your Speechmatics API key
+- `ANTHROPIC_API_KEY`: Your Claude API key from Anthropic
+- `PORT`: The port on which the server will run (default: 3000)
 
 ## Architecture
 

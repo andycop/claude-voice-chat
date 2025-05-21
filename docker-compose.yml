@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  claude-voice-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+      - ./recordings:/app/recordings
+    env_file:
+      - .env
+    restart: unless-stopped
