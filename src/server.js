@@ -46,7 +46,7 @@ const logger = {
     const arrow = direction === 'SEND' ? '→' : '←';
     const flowMsg = `${timestamp} - FLOW: ${arrow} ${service} | ${messageType}`;
     logFile.write(`${flowMsg}\n`);
-    console.log(flowMsg);
+    // console.log(flowMsg);
   }
 };
 
