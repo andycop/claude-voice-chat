@@ -605,7 +605,7 @@ wss.on('connection', (ws) => {
         transcription_config: {
           language: 'en',
           operating_point: 'standard',
-          enable_partials: true,
+          enable_partials: false,
           diarization: "speaker",
           max_delay: 4,
           max_delay_mode: "flexible"
