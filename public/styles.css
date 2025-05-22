@@ -39,7 +39,7 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
     padding: 20px;
     display: flex;
@@ -56,6 +56,7 @@ body {
     padding-bottom: 15px;
     border-bottom: 1px solid rgba(0,0,0,0.05);
     flex-shrink: 0; /* Prevent header from shrinking */
+    width: 100%; /* Ensure it takes full width */
 }
 
 .app-logo {
@@ -268,16 +269,17 @@ h2 {
 /* Transcript Section */
 .transcript-section {
     display: flex;
-    gap: 20px;
+    gap: 10px;
     margin-bottom: 20px;
     flex-shrink: 0; /* Prevent transcript section from shrinking */
+    width: 100%; /* Ensure it takes full width */
 }
 
 .visualizer-container {
     width: 15%; /* Always 15% of the width */
     min-width: 15%; /* Prevent shrinking below 15% */
     flex: 0 0 15%; /* Fixed size, no grow, no shrink */
-    background-color: var(--card-background);
+    background-color: #e9e9e9; /* Grey color when not active */
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     overflow: hidden;
@@ -285,15 +287,63 @@ h2 {
     align-items: center;
     justify-content: center;
     padding: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    order: 2; /* Ensure visualizer stays on the right */
+}
+
+.visualizer-container:hover {
+    background-color: #d9d9d9;
+}
+
+.visualizer-container.active {
+    background-color: var(--primary-color);
 }
 
 #audioVisualizer {
     width: 100%;
     height: 100px;
-    background-color: white;
-    display: block;
+    background-color: transparent;
+    display: none; /* Hidden by default */
     border-radius: 4px;
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.visualizer-container.active #audioVisualizer {
+    display: block; /* Shown when active */
+}
+
+.mic-icon {
+    position: absolute;
+    font-size: 24px;
+    color: #666;
+    transition: opacity 0.3s;
+}
+
+.visualizer-container.active .mic-icon {
+    display: none;
+}
+
+.stop-button-overlay {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.visualizer-container.active .stop-button-overlay {
+    display: flex;
+}
+
+.stop-button-overlay i {
+    color: var(--error-color);
+    font-size: 16px;
 }
 
 .transcript-container {
@@ -302,6 +352,8 @@ h2 {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     padding: 15px;
+    margin-right: 10px; /* Add margin to separate from visualizer */
+    order: 1; /* Ensure transcript stays on the left */
 }
 
 .transcript {
@@ -323,6 +375,7 @@ h2 {
     display: flex;
     flex-direction: column;
     min-height: 0; /* This is needed for flex child to properly scroll */
+    width: 100%; /* Ensure it takes full width */
 }
 
 .conversation {
@@ -593,10 +646,13 @@ h2 {
         min-width: 15%;
         flex: 0 0 15%;
         height: 80px;
+        order: 2; /* Ensure visualizer stays on the right */
     }
     
     .transcript-container {
         width: 85%;
+        order: 1; /* Ensure transcript stays on the left */
+        margin-right: 10px;
     }
     
     #audioVisualizer {

@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements - New UI
-    const listeningBtn = document.getElementById('listeningBtn');
+    const visualizerButton = document.getElementById('visualizerButton');
+    const stopButtonOverlay = document.querySelector('.stop-button-overlay');
     const recordingBtn = document.getElementById('recordingBtn');
     const menuBtn = document.getElementById('menuBtn');
     const menuDropdown = document.getElementById('menuDropdown');
@@ -40,6 +41,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioAnalyser = null;
     let audioDataArray = null;
     let animationFrameId = null;
+    
+    // Set canvas dimensions to match container
+    function resizeVisualizer() {
+        const container = visualizerButton;
+        audioVisualizer.width = container.clientWidth - 20; // Adjust for padding
+        audioVisualizer.height = container.clientHeight - 20; // Adjust for padding
+    }
+    
+    // Initial resize and listen for window resize events
+    resizeVisualizer();
+    window.addEventListener('resize', resizeVisualizer);
     
     // Audio context and processing
     let audioContext = null;
@@ -104,6 +116,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update UI to reflect that listening has stopped
                 setListeningState(false);
+                
+                // Reset audio visualizer
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                
+                // Clear canvas
+                if (audioVisualizerContext) {
+                    audioVisualizerContext.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+                }
                 
                 // Show notification to user
                 const infoElement = document.createElement('div');
@@ -467,6 +490,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Function to draw audio visualizer
     function drawAudioVisualizer() {
+        // Ensure canvas is sized properly
+        resizeVisualizer();
+        
         // Clear canvas
         audioVisualizerContext.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
         
@@ -821,11 +847,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isListening = listening;
         
         if (listening) {
-            listeningBtn.innerHTML = `<i class="fas fa-stop"></i> <span>Stop Listening</span>`;
-            listeningBtn.classList.add('active');
+            visualizerButton.classList.add('active');
         } else {
-            listeningBtn.innerHTML = `<i class="fas fa-play"></i> <span>Start Listening</span>`;
-            listeningBtn.classList.remove('active');
+            visualizerButton.classList.remove('active');
         }
     }
     
@@ -995,7 +1019,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Event listeners for new UI
-    listeningBtn.addEventListener('click', toggleListening);
+    visualizerButton.addEventListener('click', function(e) {
+        // Prevent click event if clicking on the stop button overlay
+        if (e.target.closest('.stop-button-overlay')) {
+            return;
+        }
+        toggleListening();
+    });
+    
+    stopButtonOverlay.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevent triggering the visualizer button click
+        if (isListening) {
+            toggleListening(); // Stop listening when stop button is clicked
+        }
+    });
+    
     recordingBtn.addEventListener('click', toggleRecording);
     
     // Legacy event listeners (hidden buttons, used for backward compatibility)

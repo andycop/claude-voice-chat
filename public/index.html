@@ -33,11 +33,6 @@
                 </div>
                 
                 <div class="action-buttons">
-                    <button id="listeningBtn" class="primary-btn">
-                        <i class="fas fa-play"></i>
-                        <span>Start Listening</span>
-                    </button>
-                    
                     <button id="recordingBtn" class="icon-btn">
                         <i class="fas fa-record-vinyl"></i>
                         <span>Record</span>
@@ -66,11 +61,17 @@
         </header>
         
         <div class="transcript-section">
-            <div class="visualizer-container">
-                <canvas id="audioVisualizer" width="700" height="60"></canvas>
-            </div>
             <div class="transcript-container">
                 <div id="transcript" class="transcript"></div>
+            </div>
+            <div class="visualizer-container" id="visualizerButton">
+                <canvas id="audioVisualizer"></canvas>
+                <div class="mic-icon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <div class="stop-button-overlay">
+                    <i class="fas fa-stop"></i>
+                </div>
             </div>
         </div>
         
