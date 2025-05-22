@@ -57,25 +57,32 @@ body {
     border-bottom: 1px solid rgba(0,0,0,0.05);
     flex-shrink: 0; /* Prevent header from shrinking */
     width: 100%; /* Ensure it takes full width */
+    flex-wrap: nowrap; /* Prevent wrapping on smaller screens */
 }
 
 .app-logo {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
+    flex-shrink: 1;
+    min-width: 0; /* Allow to shrink if needed */
 }
 
 .logo-circle {
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
     background-color: var(--primary-color);
     border-radius: 50%;
+    flex-shrink: 0; /* Don't allow circle to shrink */
 }
 
 h1 {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 600;
     color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 h2 {
@@ -92,12 +99,13 @@ h2 {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 10px;
+    gap: 6px;
+    flex-shrink: 0; /* Prevent controls from shrinking */
 }
 
 .status-indicators {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     justify-content: flex-end;
     width: 100%;
 }
@@ -142,8 +150,9 @@ h2 {
 /* Action Buttons */
 .action-buttons {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     align-items: center;
+    flex-shrink: 0; /* Don't shrink these buttons */
 }
 
 .icon-btn {
@@ -156,7 +165,7 @@ h2 {
     color: var(--text-secondary);
     cursor: pointer;
     transition: color 0.2s;
-    padding: 8px;
+    padding: 6px;
 }
 
 .icon-btn:hover {
@@ -164,12 +173,12 @@ h2 {
 }
 
 .icon-btn i {
-    font-size: 20px;
-    margin-bottom: 5px;
+    font-size: 18px;
+    margin-bottom: 3px;
 }
 
 .icon-btn span {
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .primary-btn {
@@ -631,7 +640,7 @@ h2 {
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 550px) {
     .container {
         padding: 10px;
         height: 100vh;
