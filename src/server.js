@@ -11,22 +11,22 @@ const errorLogFile = fs.createWriteStream(path.join(__dirname, '../logs/error.lo
 const logger = {
   log: function(message) {
     const timestamp = new Date().toISOString();
-    //logFile.write(`${timestamp} - ${message}\n`);
+    logFile.write(`${timestamp} - ${message}\n`);
     // Don't show regular logs in console
   },
   debug: function(message) {
     const timestamp = new Date().toISOString();
-    //logFile.write(`${timestamp} - DEBUG: ${message}\n`);
+    logFile.write(`${timestamp} - DEBUG: ${message}\n`);
     // Don't show debug logs in console
   },
   info: function(message) {
     const timestamp = new Date().toISOString();
-    //logFile.write(`${timestamp} - INFO: ${message}\n`);
+    logFile.write(`${timestamp} - INFO: ${message}\n`);
     // Don't show info logs in console
   },
   warn: function(message) {
     const timestamp = new Date().toISOString();
-    //logFile.write(`${timestamp} - WARN: ${message}\n`);
+    logFile.write(`${timestamp} - WARN: ${message}\n`);
     // Don't show warning logs in console
   },
   error: function(message, error) {
@@ -162,12 +162,63 @@ wss.on('connection', (ws) => {
   let transcriptBuffer = [];
   let lastSpeechTime = null;
   let silenceTimer = null;
+  let autoShutoffTimer = null; // Timer for auto-shutoff after prolonged silence
   let emptyTranscriptCount = 0; // Counter for empty AddTranscript messages
   let isProcessingTranscript = false; // Flag to prevent duplicate processing
   const SILENCE_THRESHOLD = 2000; // 2 seconds of silence to trigger sending
   const EMPTY_TRANSCRIPT_THRESHOLD = 3; // Number of empty transcripts to consider as silence
-  logger.info(`Initializing with silence threshold of ${SILENCE_THRESHOLD}ms`);
+  const AUTO_SHUTOFF_THRESHOLD = 60000; // 60 seconds (1 minute) of silence to trigger auto-shutoff
+  logger.info(`Initializing with silence threshold of ${SILENCE_THRESHOLD}ms and auto-shutoff threshold of ${AUTO_SHUTOFF_THRESHOLD}ms`);
 
+  /**
+   * Auto-shutoff function after prolonged silence
+   * Stops the connection to Speechmatics to prevent incurring costs
+   */
+  function triggerAutoShutoff() {
+    logger.info('Auto-shutoff triggered due to prolonged silence');
+    
+    // Process any pending transcripts first
+    if (transcriptBuffer.length > 0) {
+      processFinalTranscriptAndReset('Auto-shutoff silence detection');
+    }
+    
+    // Clear auto-shutoff timer
+    if (autoShutoffTimer) {
+      clearTimeout(autoShutoffTimer);
+      autoShutoffTimer = null;
+    }
+    
+    // Send a message to the client
+    ws.send(JSON.stringify({
+      type: 'info',
+      text: 'Listening automatically stopped due to prolonged silence (1 minute)'
+    }));
+    
+    // Send shutoff event to client
+    ws.send(JSON.stringify({
+      type: 'autoShutoff',
+      message: 'Listening automatically stopped due to prolonged silence'
+    }));
+    
+    // Clean up Speechmatics connection
+    cleanupSpeechmaticsConnection().then(() => {
+      logger.info('Connection cleanup completed after auto-shutoff');
+      
+      // Update statuses
+      ws.send(JSON.stringify({
+        type: 'status',
+        status: 'apiInactive',
+        message: 'Speech recognition inactive'
+      }));
+      
+      ws.send(JSON.stringify({
+        type: 'status',
+        status: 'speechInactive',
+        message: 'Speech detection inactive'
+      }));
+    });
+  }
+  
   /**
    * Process final transcript and send to Claude
    * @param {string} reason - The reason for processing (e.g., silence detection, stop button)
@@ -227,7 +278,7 @@ wss.on('connection', (ws) => {
       // Get response from Claude
       logger.flow('SEND', 'Anthropic', `API request with transcript: "${fullTranscript.substring(0, 30)}${fullTranscript.length > 30 ? '...' : ''}"`);
       const claudeResponse = await anthropic.messages.create({
-        model: 'claude-3-7-sonnet-latest',
+        model: 'claude-3-5-haiku-20241022',
         max_tokens: 1000,
         system: 'You are a helpful voice assistant. Respond concisely as you are part of a real-time conversation. Format your responses using Markdown when appropriate - you can use bold, italics, links, lists, code blocks, etc. to structure your responses.',
         messages: messageHistory
@@ -289,6 +340,8 @@ wss.on('connection', (ws) => {
       clearTimeout(silenceTimer);
       silenceTimer = null;
     }
+    // DO NOT Reset auto-shutoff timer here. It should only be reset by new speech activity
+    // or when the connection is started/stopped.
     emptyTranscriptCount = 0;
     
     // Reset processing flag
@@ -479,11 +532,21 @@ wss.on('connection', (ws) => {
             clearTimeout(silenceTimer);
           }
           
+          // Reset auto-shutoff timer
+          if (autoShutoffTimer) {
+            logger.flow('PROC', 'Server', 'Resetting auto-shutoff timer - new speech detected');
+            clearTimeout(autoShutoffTimer);
+          }
+          
           // Start a new silence timer as fallback
           logger.flow('PROC', 'Server', `Starting silence timer (${SILENCE_THRESHOLD}ms)`);
           silenceTimer = setTimeout(() => {
             processFinalTranscriptAndReset('Time-based silence detection');
           }, SILENCE_THRESHOLD);
+          
+          // Start a new auto-shutoff timer
+          logger.flow('PROC', 'Server', `Starting auto-shutoff timer (${AUTO_SHUTOFF_THRESHOLD}ms)`);
+          autoShutoffTimer = setTimeout(triggerAutoShutoff, AUTO_SHUTOFF_THRESHOLD);
         } else {
           // Empty transcript handling
           emptyTranscriptCount++;
@@ -628,6 +691,13 @@ wss.on('connection', (ws) => {
         silenceTimer = null;
       }
       
+      // Set up auto-shutoff timer
+      if (autoShutoffTimer) {
+        clearTimeout(autoShutoffTimer);
+      }
+      logger.flow('PROC', 'Server', `Starting auto-shutoff timer (${AUTO_SHUTOFF_THRESHOLD}ms)`);
+      autoShutoffTimer = setTimeout(triggerAutoShutoff, AUTO_SHUTOFF_THRESHOLD);
+      
       // Reset connection tracking flags
       apiResponseReceived = false;
       connectionSuccessful = false;
@@ -683,6 +753,12 @@ wss.on('connection', (ws) => {
         connectionSuccessful = false;
         recognitionStarted = false;
         lastSeqNo = 0; // Reset sequence number
+        
+        // Clear any auto-shutoff timer
+        if (autoShutoffTimer) {
+          clearTimeout(autoShutoffTimer);
+          autoShutoffTimer = null;
+        }
         resolve();
         return;
       }
@@ -733,6 +809,12 @@ wss.on('connection', (ws) => {
         connectionSuccessful = false;
         recognitionStarted = false;
         lastSeqNo = 0; // Reset sequence number
+        
+        // Clear any auto-shutoff timer
+        if (autoShutoffTimer) {
+          clearTimeout(autoShutoffTimer);
+          autoShutoffTimer = null;
+        }
         logger.info('Speechmatics connection cleanup complete');
         
         // Remove all listeners from the old WebSocket to avoid memory leaks
@@ -758,6 +840,12 @@ wss.on('connection', (ws) => {
           connectionSuccessful = false;
           recognitionStarted = false;
           lastSeqNo = 0; // Reset sequence number
+          
+          // Clear any auto-shutoff timer
+          if (autoShutoffTimer) {
+            clearTimeout(autoShutoffTimer);
+            autoShutoffTimer = null;
+          }
           logger.info('Speechmatics connection cleanup complete from close event');
           
           // Remove all listeners from the old WebSocket to avoid memory leaks
@@ -958,6 +1046,12 @@ wss.on('connection', (ws) => {
       connectionSuccessful = false;
       recognitionStarted = false;
       lastSeqNo = 0; // Reset sequence number
+      
+      // Clear auto-shutoff timer
+      if (autoShutoffTimer) {
+        clearTimeout(autoShutoffTimer);
+        autoShutoffTimer = null;
+      }
       // Clean up conversation history
       conversations.delete(conversationId);
     });

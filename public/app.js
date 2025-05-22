@@ -95,6 +95,23 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (message.type === 'status') {
                 handleStatusUpdate(message);
+            } else if (message.type === 'autoShutoff') {
+                // Handle auto-shutoff event
+                console.log('Auto-shutoff triggered:', message.message);
+                
+                // Update UI to reflect that listening has stopped
+                setListeningState(false);
+                
+                // Show notification to user
+                const infoElement = document.createElement('div');
+                infoElement.className = 'info-message';
+                infoElement.textContent = message.message;
+                
+                // Add info to conversation
+                conversationElement.appendChild(infoElement);
+                
+                // Scroll to bottom
+                conversationElement.scrollTop = conversationElement.scrollHeight;
             } else if (message.type === 'transcript') {
                 // Get transcript details
                 const { text, isFinal, source } = message;
@@ -245,10 +262,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'speechDetected':
                     updateStatus('speech', 'Active');
                     break;
+                case 'speechInactive':
+                    updateStatus('speech', 'Inactive');
+                    break;
                     
                 // API status updates
                 case 'apiConnecting':
                     updateStatus('api', 'Connecting', 'pending');
+                    break;
+                case 'apiInactive':
+                    updateStatus('api', 'Inactive');
                     break;
                 case 'apiConnected':
                     updateStatus('api', 'Connected');
