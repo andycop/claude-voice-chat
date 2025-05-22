@@ -64,11 +64,19 @@ if (fs.existsSync(envPath)) {
   dotenv.config();
 } else {
   logger.warn('Warning: .env file not found at: ' + envPath);
-  logger.warn('Please create a .env file with your API keys (see .env.example)');
-  // Create a default .env file with placeholders
-  const envExample = fs.readFileSync(path.resolve(process.cwd(), '.env.example'), 'utf8');
-  fs.writeFileSync(envPath, envExample, 'utf8');
-  logger.info('Created placeholder .env file. Please edit it with your API keys.');
+  const envExamplePath = path.resolve(process.cwd(), '.env.example');
+  if (fs.existsSync(envExamplePath)) {
+    logger.info(`Found .env.example at ${envExamplePath}, creating .env file from it.`);
+    const envExampleContent = fs.readFileSync(envExamplePath, 'utf8');
+    fs.writeFileSync(envPath, envExampleContent, 'utf8');
+    logger.info(`Created placeholder .env file at ${envPath}. If API keys are not set via environment variables, please edit this file.`);
+  } else {
+    logger.warn(`Warning: .env.example file not found at ${envExamplePath}.`);
+    logger.warn('Continuing without creating a .env file. Ensure necessary environment variables are set externally (e.g., via Docker).');
+  }
+  // Load .env if it was created or already exists (and wasn't caught by the first if).
+  // If no .env file, dotenv.config() does nothing harmful.
+  // Variables from process.env (e.g., set by Docker) take precedence over .env file vars by default.
   dotenv.config();
 }
 
