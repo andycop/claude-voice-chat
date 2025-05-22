@@ -9,6 +9,7 @@ RUN npm install
 
 # Copy app source code
 COPY . .
+COPY .env.example .
 
 # Create required directories
 RUN mkdir -p logs recordings
