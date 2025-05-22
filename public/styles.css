@@ -211,7 +211,7 @@ h2 {
     display: none;
     position: absolute;
     top: 100%;
-    right: 0;
+    right: 0; /* Align to the right edge of the menu button */
     background-color: var(--card-background);
     min-width: 220px;
     border-radius: var(--border-radius);
@@ -639,6 +639,6 @@ h2 {
     
     /* Hamburger menu adjustments for mobile */
     .dropdown-content {
-        right: -50px; /* Adjust position to be more centered */
+        right: 0; /* Keep aligned to the right edge */
     }
 }
