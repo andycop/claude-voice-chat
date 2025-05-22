@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM elements - New UI
     const listeningBtn = document.getElementById('listeningBtn');
     const recordingBtn = document.getElementById('recordingBtn');
+    const menuBtn = document.getElementById('menuBtn');
+    const menuDropdown = document.getElementById('menuDropdown');
+    const microphoneMenuItem = document.getElementById('microphoneMenuItem');
     const recordingInfoElement = document.getElementById('recordingInfo');
     const microphoneSelect = document.getElementById('microphoneSelect');
     const transcriptElement = document.getElementById('transcript');
