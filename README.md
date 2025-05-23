@@ -1,13 +1,16 @@
 # Claude Voice Chat
 
-<div style="display: flex; align-items: center; gap: 20px;">
-<div style="flex: 1;">
-A real-time voice chat application using Speechmatics for speech recognition and Claude AI for generating responses.
-</div>
-<div style="flex: 1;">
-<img src="references/claude-voice-chat.png" alt="Claude Voice Chat Application" style="max-width: 100%; height: auto;">
-</div>
-</div>
+  <table>
+  <tr>
+  <td width="40%">
+  A real-time voice chat application using Speechmatics for speech recognition and Claude AI for generating
+  responses.
+  </td>
+  <td width="60%" align="right">
+  <img src="references/claude-voice-chat.png" alt="Claude Voice Chat Application" width="100%">
+  </td>
+  </tr>
+  </table>
 
 ## Features
 
@@ -26,17 +29,20 @@ A real-time voice chat application using Speechmatics for speech recognition and
 ## Installation
 
 1. Clone the repository
+   
    ```
    git clone <repository-url>
    cd claude-voice-chat
    ```
 
 2. Install dependencies
+   
    ```
    npm install
    ```
 
 3. Create a `.env` file in the root directory with the following content:
+   
    ```
    SPEECHMATICS_API_KEY=your_speechmatics_api_key_here
    ANTHROPIC_API_KEY=your_anthropic_api_key_here
@@ -48,10 +54,13 @@ A real-time voice chat application using Speechmatics for speech recognition and
 ### Local Development
 
 1. Start the server
+   
    ```
    npm start
    ```
+   
    For development with auto-restart:
+   
    ```
    npm run dev
    ```
@@ -67,6 +76,7 @@ A real-time voice chat application using Speechmatics for speech recognition and
 1. Make sure you have Docker and Docker Compose installed on your server
 
 2. Clone the repository and navigate to the project directory
+   
    ```
    git clone <repository-url>
    cd claude-voice-chat
@@ -75,6 +85,7 @@ A real-time voice chat application using Speechmatics for speech recognition and
 3. Create a `.env` file with your API keys
 
 4. Build and start the Docker container
+   
    ```
    docker-compose up -d
    ```
