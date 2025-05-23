@@ -1,6 +1,13 @@
 # Claude Voice Chat
 
+<div style="display: flex; align-items: center; gap: 20px;">
+<div style="flex: 1;">
 A real-time voice chat application using Speechmatics for speech recognition and Claude AI for generating responses.
+</div>
+<div style="flex: 1;">
+<img src="references/claude-voice-chat.png" alt="Claude Voice Chat Application" style="max-width: 100%; height: auto;">
+</div>
+</div>
 
 ## Features
 
